@@ -1,3 +1,4 @@
+import weakref
 from neuron import h
 
 
@@ -24,7 +25,7 @@ class Context(object):
             raise RuntimeError("There is already an active simulation context."
                                " Call finish() on that context before starting"
                                " another.")
-        self._objects = []
+        self._objects = weakref.WeakSet()
         self._dt = 0.025
         self._celsius = 25.0
         self._tstop = 10.
@@ -32,7 +33,7 @@ class Context(object):
         Context._active = self
         
     def _add(self, obj):
-        self._objects.append(obj)
+        self._objects.add(obj)
         
     @property
     def dt(self):
