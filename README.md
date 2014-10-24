@@ -13,8 +13,6 @@ Features:
 * Fully documented, unit-tested API
 * No HocObjects
 * Pure python (but depends on standard neuron package)
-
-Todo:
-* Multiple simulation contexts
+* Multiple independent simulation contexts
 
 
