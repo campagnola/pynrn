@@ -31,6 +31,7 @@ class Context(object):
         self._tstop = 10.
         self._initialized = False
         Context._active = self
+        self.verify()
         
     def _add(self, obj):
         self._objects.add(obj)
@@ -114,7 +115,7 @@ class Context(object):
         
     def _destroy(self):
         # SEE: http://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3213
-        for o in self._objects:
+        for o in list(self._objects):
             o._destroy()
     
     def verify(self):
@@ -123,7 +124,40 @@ class Context(object):
         
         If there is a mismatch, an exception is raised.
         """
+        from .section import Section
         
         # Note: need to be extra careful about leaking references from here!
+        # NO exceptions allowed until NEURON references are removed!
+        try:
+            sec = None
+            checked = set()
+            extras = list()
+            for sec in h.allsec():
+                wrapper = Section._get(sec, create=False)
+                if wrapper is None:
+                    extras.append(sec.name())
+                else:
+                    checked.add(wrapper)
+        finally:
+            del sec
         
+        # NEURON secions present that the context doesn't know about
+        if len(extras) > 0:
+            raise Exception("Section(s) do not belong to this context: %s" %
+                        str(extras))
+        
+        # Context sections present that NEURON doesn't know about
+        mysec = set([x for x in self._objects if isinstance(x, Section)])
+        if len(mysec - checked) > 0:
+            raise Exception("Context has sections that are not known to "
+                            "NEURON: %s" % mysec)
+        
+        # TODO: check for artificial cells, point processes, vectors, etc.
+        
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, *args):
+        self.finish()
         

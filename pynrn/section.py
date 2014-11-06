@@ -2,6 +2,7 @@ import weakref
 from neuron import h
 from .neuron_object import NeuronObject
 from .segment import Segment
+from .mechanism import Mechanism
 
 
 class Section(NeuronObject):
@@ -171,9 +172,15 @@ class Section(NeuronObject):
             return ValueError("Mechanism type '%s' is already inserted into "
                               "%s." % (mech_name, self))
         mech = Mechanism.create(mech_name, self)
-        self.__nrnobj.insert(mech_name)
-        self._mechanisms[mech_name] = mech
         return mech
+    
+    def _insert(self, mech):
+        if hasattr(self, mech.type):
+            raise RuntimeError("Section mechanism name %s conflicts with previous"
+                               "attribute." % mech.type)
+        self.__nrnobj.insert(mech.type)
+        self._mechanisms[mech.type] = mech
+        setattr(self, mech.type, mech)
 
     @property
     def mechanisms(self):
@@ -232,19 +239,22 @@ class Section(NeuronObject):
         self._forget_segments()  # Segments keep their Section alive, even if
                                  # they no longer belong to the section!
         self.__secref = None
-        n = len(list(h.allsec()))
         self.__nrnobj = None
-        assert len(list(h.allsec())) < n
         
         NeuronObject._destroy(self)
     
     @classmethod
-    def _get(cls, sec):
+    def _get(cls, sec, create=True):
         """Return the Section instance corresponding to the given NEURON 
         section, or create a new one if needed.
+        
+        If no previous Section instance exists and create==False, then return
+        None.
         """
         name = sec.name()
         if name in Section.allsec:
             return Section.allsec[name]
-        else:
+        elif create is True:
             return Section(_nrnobj=sec)
+        else:
+            return None

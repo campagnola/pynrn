@@ -1,3 +1,4 @@
+import weakref
 from neuron import h
 from .neuron_object import NeuronObject
 
@@ -11,13 +12,18 @@ class Mechanism(NeuronObject):
     """
     _mech_types = None
     
-    def __init__(self, mech_type, segment, netcon_target, has_netevent, 
-                 internal_type):
+    def __init__(self, mech_type, netcon_target, has_netevent, internal_type):
         NeuronObject.__init__(self)
-        segment.insert(mech_type)
         self._netcon_target = netcon_target
         self._has_netevent = has_netevent
         self._internal_type = internal_type
+        self._mech_type = mech_type
+
+        
+
+    @property
+    def type(self):
+        return self._mech_type
 
     @property
     def is_netcon_target(self):
@@ -79,35 +85,62 @@ class Mechanism(NeuronObject):
                         'internal_type': int_typ}
                 
         return Mechanism._mech_types
-    
-    def create(self, type, section):
-        mech_info = self.all_mechanism_types().get(type, None)
-        
+
+    @classmethod
+    def create(cls, type, *args, **kwds):
+        mech_info = cls.all_mechanism_types().get(type, None)
         if mech_info is None:
             raise KeyError("Unknown mechanism type '%s'. For a complete list, "
                            "see Mechanism.all_mechanism_types()." % type)
+        mech_info = mech_info.copy()
         
         pp = mech_info.pop('point_process')
         ac = mech_info.pop('artificial_cell')
+        for k in mech_info:
+            if k in kwds:
+                raise TypeError("Invalid keyword argument %s" % k)
+        kwds.update(mech_info)
+        kwds['mech_type'] = type
+        
         if pp:
             if ac:
-                return ArtificialCell(type, section, **mech_info)
+                return ArtificialCell(*args, **kwds)
             else:
-                return PointProcess(type, section, **mech_info)
+                return PointProcess(*args, **kwds)
         else:
-            return DistributedMechanism(type, section, **mech_info)
+            return DistributedMechanism(*args, **kwds)
 
 
 class DistributedMechanism(Mechanism):
-    def __init__(self, *args, **kwds):
-        Mechanism.__init__(self)
+    def __init__(self, section, **kwds):
+        Mechanism.__init__(self, **kwds)
+        self._section = weakref.ref(section)
+        section._insert(self)
+    
+    @property
+    def section(self):
+        return self._section()
+
+    def remove(self):
+        """Remove this mechanism from its host section.
+        
+        After removal, the mechanism may not be re-used.
+        """
+        raise NotImplementedError()
 
 
 class PointProcess(Mechanism):
-    def __init__(self, *args, **kwds):
-        Mechanism.__init__(self)
+    def __init__(self, segment, **kwds):
+        Mechanism.__init__(self, **kwds)
+        self._segment = weakref.ref(segment)
+
+    @property
+    def segment(self):
+        return self._segment()
+
+    
 
 
 class ArtificialCell(Mechanism):
-    def __init__(self, *args, **kwds):
-        Mechanism.__init__(self)
+    def __init__(self, **kwds):
+        Mechanism.__init__(self, **kwds)
