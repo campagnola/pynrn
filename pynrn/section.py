@@ -6,31 +6,35 @@ from .segment import Segment
 
 class Section(NeuronObject):
     
+    # A weak dictionary containing all currently living Section instances.
     allsec = weakref.WeakValueDictionary()
-        
+    
     def __init__(self, name=None, **kwds):
         # In order to ensure that we can uniquely map each NEURON section to
         # a single Section instance, they must have unique names. Therefore,
         # we do not allow the user to set the name of the NEURON section.
         self._name = name
         
+        # Keep a dict of all mechanisms inserted into this section
+        self._mechanisms = {}
+        
         # To ensure we can destroy this Secion on demand, we must know all of
         # the Segments that reference this Section.
         self._segments = weakref.WeakValueDictionary()
         NeuronObject.__init__(self)
         
-        self._create(**kwds)
-        
-        secname = self.__nrnobj.name()
-        assert secname not in Section.allsec
-        Section.allsec[secname] = self
-
-    def _create(self, **kwds):
+        # Create underlying Section and SectionRef objects
         if '_nrnobj' in kwds:
             self.__nrnobj = kwds['_nrnobj']
         else:
             self.__nrnobj = h.Section()
         self.__secref = h.SectionRef(sec=self.__nrnobj)
+        
+        # Register the section's name to ensure we won't create a new wrapper
+        # for the same section.
+        secname = self.__nrnobj.name()
+        assert secname not in Section.allsec
+        Section.allsec[secname] = self
 
     @property
     def name(self):
@@ -42,6 +46,10 @@ class Section(NeuronObject):
     @property
     def nseg(self):
         """The number of segments in the section.
+        
+        Setting this value causes all previously acquired segment references to
+        be destroyed. In general, it is best to set nseg _before_ accessing
+        any segments.
         """
         return self.__nrnobj.nseg
     
@@ -145,9 +153,39 @@ class Section(NeuronObject):
         """
         self.__nrnobj.connect(parent.__nrnobj, parentx, childend)
         
-    def insert(self, mech):
-        # todo: create & return Mechanism instance
-        self.__nrnobj.insert(mech)
+    def insert(self, mech_name):
+        """Insert a new mechanism into this Section.
+        
+        Returns the Mechanism instance that was created.
+        
+        If the mechanism name is not known to NEURON or has already been 
+        inserted into this Section, an error is raised.
+        
+        See Also
+        --------
+        
+        Mechanism.all_mechanism_types()
+        Section.mechanisms()
+        """
+        if mech_name in self._mechanisms:
+            return ValueError("Mechanism type '%s' is already inserted into "
+                              "%s." % (mech_name, self))
+        mech = Mechanism.create(mech_name, self)
+        self.__nrnobj.insert(mech_name)
+        self._mechanisms[mech_name] = mech
+        return mech
+
+    @property
+    def mechanisms(self):
+        """A dictionary of all distributed mechanisms inserted into this Section.
+        """
+        return self._mechanisms.copy()
+
+    @property
+    def point_processes(self):
+        """A list of all point processes inserted into this Section.
+        """
+        
 
     def __call__(self, x):
         """Return a Segment pointing to position x on this Section.
@@ -158,6 +196,13 @@ class Section(NeuronObject):
             seg = Segment(_nrnobj=self.__nrnobj(x))
             self._segments[x] = seg
         return self._segments[x]
+    
+    def __iter__(self):
+        """Iterate over all segments in the section. 
+        
+        This is equivalent to `section.segments`.
+        """
+        return self.segments
         
     @property
     def nodes(self):
@@ -188,8 +233,10 @@ class Section(NeuronObject):
                                  # they no longer belong to the section!
         self.__secref = None
         n = len(list(h.allsec()))
-        NeuronObject._destroy(self)
+        self.__nrnobj = None
         assert len(list(h.allsec())) < n
+        
+        NeuronObject._destroy(self)
     
     @classmethod
     def _get(cls, sec):

@@ -34,6 +34,9 @@ class Context(object):
         
     def _add(self, obj):
         self._objects.add(obj)
+
+    def _remove(self, obj):
+        self._objects.remove(obj)
         
     @property
     def dt(self):
@@ -82,9 +85,19 @@ class Context(object):
         self._initialized = True
         
     def advance(self):
+        """Run the NEURON simulator for one timestep.
+        """
         h.fadvance()
         
     def run(self, **kwds):
+        """Run the NEURON stimulator until the time reaches or passes tstop.
+        
+        All keyword arguments are used to inintialize the context, if it has 
+        not already been initialized. 
+        
+        If the context has already been initialized, no arguments will be 
+        accepted.
+        """
         if not self._initialized:
             self.init(**kwds)
         elif len(kwds) > 0:
@@ -100,6 +113,17 @@ class Context(object):
         Context._active = None
         
     def _destroy(self):
+        # SEE: http://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3213
         for o in self._objects:
             o._destroy()
     
+    def verify(self):
+        """Introspect the NEURON kernel to verify that the set of objects in
+        this context exactly match those being simulated.
+        
+        If there is a mismatch, an exception is raised.
+        """
+        
+        # Note: need to be extra careful about leaking references from here!
+        
+        

@@ -17,6 +17,9 @@ class Vector(NeuronObject):
         NeuronObject._destroy(self)
         
     def asarray(self):
+        # Note: we dont use numpy array interface because it fails silently
+        # if there is a problem with the underlying Vector (for example, it
+        # has already been deleted)
         if self.__nrnobj is None:
             raise TypeError("Cannot convert vector to array because it has "
                              "already been deleted.")
