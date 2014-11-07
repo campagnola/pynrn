@@ -20,11 +20,12 @@ class Context(object):
         """
         return cls._active
     
-    def __init__(self):
+    def __init__(self, finish_on_error=True):
         if Context._active is not None:
             raise RuntimeError("There is already an active simulation context."
                                " Call finish() on that context before starting"
                                " another.")
+        self._finish_on_error = finish_on_error
         self._objects = weakref.WeakSet()
         self._dt = 0.025
         self._celsius = 25.0
@@ -160,4 +161,3 @@ class Context(object):
         
     def __exit__(self, *args):
         self.finish()
-        

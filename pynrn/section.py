@@ -52,10 +52,12 @@ class Section(NeuronObject):
         be destroyed. In general, it is best to set nseg _before_ accessing
         any segments.
         """
+        self.check_destroyed()
         return self.__nrnobj.nseg
     
     @nseg.setter
     def nseg(self, n):
+        self.check_destroyed()
         self._forget_segments()
         self.__nrnobj.nseg = n
         
@@ -72,6 +74,7 @@ class Section(NeuronObject):
         Section.trueparent
         Section.root
         """
+        self.check_destroyed()
         if self.__secref.has_parent() == 0:
             return None
         else:
@@ -101,6 +104,7 @@ class Section(NeuronObject):
             dend2.parent == dend1
             dend2.trueparent == root
         """
+        self.check_destroyed()
         if self.__secref.has_trueparent() == 0:
             return None
         else:
@@ -110,12 +114,14 @@ class Section(NeuronObject):
     def root(self):
         """The root section of the tree connected to this section.
         """
+        self.check_destroyed()
         return Section._get(self.__secref.root)
 
     @property
     def nchild(self):
         """The number of child sections attached to this section.
         """
+        self.check_destroyed()
         return int(self.__secref.nchild())
 
     def child(self, i):
@@ -126,6 +132,7 @@ class Section(NeuronObject):
         i : int
             The index of the child to return, where 0 <= i < self.nchild.
         """
+        self.check_destroyed()
         if i >= self.nchild:
             raise ValueError("Cannot get child %d; only %d children exist." %
                              (i, self.nchild))
@@ -135,6 +142,7 @@ class Section(NeuronObject):
     def children(self):
         """An iterator over all children to this section.
         """
+        self.check_destroyed()
         for i in range(self.nchild):
             yield self.child(i)
 
@@ -152,12 +160,13 @@ class Section(NeuronObject):
             The end of *self* that should be connected to *parent*.
         
         """
+        self.check_destroyed()
         self.__nrnobj.connect(parent.__nrnobj, parentx, childend)
         
     def insert(self, mech_name):
-        """Insert a new mechanism into this Section.
+        """Insert a new distributed mechanism into this Section.
         
-        Returns the Mechanism instance that was created.
+        Returns the Mechanism instance that was created. 
         
         If the mechanism name is not known to NEURON or has already been 
         inserted into this Section, an error is raised.
@@ -168,6 +177,7 @@ class Section(NeuronObject):
         Mechanism.all_mechanism_types()
         Section.mechanisms()
         """
+        self.check_destroyed()
         if mech_name in self._mechanisms:
             return ValueError("Mechanism type '%s' is already inserted into "
                               "%s." % (mech_name, self))
@@ -175,32 +185,44 @@ class Section(NeuronObject):
         return mech
     
     def _insert(self, mech):
-        if hasattr(self, mech.type):
-            raise RuntimeError("Section mechanism name %s conflicts with previous"
-                               "attribute." % mech.type)
+        # Insert a distributed mechanism
+        # (this is called by Mechanism.__init__)
         self.__nrnobj.insert(mech.type)
         self._mechanisms[mech.type] = mech
-        setattr(self, mech.type, mech)
+        # Inform all segments that mechanism list has changed.
+        for seg in self._segments.values():
+            seg._update_mechs()
+
+    def _remove(self, mech):
+        # Remove a distributed mechanism
+        
+        raise NotImplementedError()
+        # Inform all segments that mechanism list has changed.
+        for seg in self._segments:
+            seg._update_mechs()
 
     @property
     def mechanisms(self):
         """A dictionary of all distributed mechanisms inserted into this Section.
         """
+        self.check_destroyed()
         return self._mechanisms.copy()
 
     @property
     def point_processes(self):
         """A list of all point processes inserted into this Section.
         """
+        self.check_destroyed()
         
 
     def __call__(self, x):
         """Return a Segment pointing to position x on this Section.
         """
+        self.check_destroyed()
         if x < 0 or x > 1:
             raise ValueError("x must be between 0 and 1.")
         if x not in self._segments:
-            seg = Segment(_nrnobj=self.__nrnobj(x))
+            seg = Segment(_nrnobj=self.__nrnobj(x), section=self)
             self._segments[x] = seg
         return self._segments[x]
     
@@ -231,11 +253,14 @@ class Section(NeuronObject):
 
     def _forget_segments(self):
         # forget all Segments
+        self.check_destroyed()
         for seg in self._segments.values():
             seg._destroy()
         self._segments.clear()
 
     def _destroy(self):
+        if self.destroyed:
+            return
         self._forget_segments()  # Segments keep their Section alive, even if
                                  # they no longer belong to the section!
         self.__secref = None

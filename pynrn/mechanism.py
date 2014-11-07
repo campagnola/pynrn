@@ -1,7 +1,7 @@
 import weakref
 from neuron import h
 from .neuron_object import NeuronObject
-
+from .reference import FloatVar
 
 class Mechanism(NeuronObject):
     """Base class for NEURON mechanisms including distributed mechanisms, 
@@ -18,8 +18,6 @@ class Mechanism(NeuronObject):
         self._has_netevent = has_netevent
         self._internal_type = internal_type
         self._mech_type = mech_type
-
-        
 
     @property
     def type(self):
@@ -129,6 +127,85 @@ class DistributedMechanism(Mechanism):
         raise NotImplementedError()
 
 
+class SegmentMechanism(NeuronObject):
+    """Provides access to a distributed mechanism within a single segment.
+    
+    Range variables for the mechanism acting at this segment may be accessed
+    as attributes. See the ``variable_names`` property for a complete list.
+    
+    This class should not be instantiated directly; instead use 
+    ``segment.mechname``.
+    """
+    def __init__(self, **kwds):
+        # Disable __setattr__ until init has completed.
+        self.__dict__['_setattr_disabled'] = True
+        self.__dict__['_varnames'] = []
+        
+        NeuronObject.__init__(self)
+        if '_nrnobj' not in kwds:
+            raise TypeError("SegmentMechanism instances should only be "
+                            "accessed from Segments.")
+        
+        self._segment = kwds['segment']
+        self.__nrnobj = kwds['_nrnobj']
+        self._name = self.__nrnobj.name()
+        
+        # Activate __setattr__ only after initial attributes have been created.
+        self._setattr_disabled = False
+        
+        suffix = '_' + self._name
+        for name in dir(self.__nrnobj):
+            if not name.endswith(suffix):
+                continue
+            name = name[:-len(suffix)]
+            self._varnames.append(name)
+            # Add name to __dict__ so that dir() lists available attributes.
+            self.__dict__[name] = None
+    
+    @property
+    def variable_names(self):
+        """A list of the names of variables for this mechanism.
+        """
+        return self._varnames[:]
+    
+    def __getattribute__(self, attr):
+        """If a mechanism variable is requested, then return a FloatVar reference
+        to that value. Otherwise, just do a normal attribute lookup.
+        """
+        ignore_attrs = ['_setattr_disabled', '_varnames', '__dict__']
+        if attr not in ignore_attrs and attr in self._varnames:
+            self.check_destroyed()
+            val = getattr(self.__nrnobj, attr)
+            return FloatVar(self, attr, val)
+        else:
+            return NeuronObject.__getattribute__(self, attr)
+    
+    def __setattr__(self, attr, val):
+        """Set the value of a mechanism variable.
+        
+        Raise NameError if the name is not recognized. 
+        """
+        if attr in self._varnames:
+            self.check_destroyed()
+            setattr(self.__nrnobj, attr, val)
+        else:
+            # allow setting atrtibutes that already exist, also
+            # allow setting any attributes during init.
+            if self._setattr_disabled or hasattr(self, attr):
+                return NeuronObject.__setattr__(self, attr, val)
+            
+            raise NameError("Unknown attribute '%s' for mechanism '%s'." % 
+                            (attr, self._name))
+
+    def _get_ref(self, attr):
+        self.check_destroyed()
+        return getattr(self.__nrnobj, '_ref_' + attr)
+    
+    @property
+    def name(self):
+        return self._name
+
+
 class PointProcess(Mechanism):
     def __init__(self, segment, **kwds):
         Mechanism.__init__(self, **kwds)
@@ -137,8 +214,6 @@ class PointProcess(Mechanism):
     @property
     def segment(self):
         return self._segment()
-
-    
 
 
 class ArtificialCell(Mechanism):

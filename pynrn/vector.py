@@ -8,10 +8,14 @@ class Vector(NeuronObject):
         NeuronObject.__init__(self)
         self.__nrnobj = h.Vector()
         if record is not None:
-            if not isinstance(record, FloatVar):
-                raise TypeError("Cannot record from object of type %s" % 
-                                type(record))
-            self.__nrnobj.record(record.ref)
+            self.record(record)
+            
+    def record(self, ref):
+        self.check_destroyed()
+        if not isinstance(ref, FloatVar):
+            raise TypeError("Cannot record from object of type %s" % 
+                            type(ref))
+        self.__nrnobj.record(ref._get_ref)
             
     def _destroy(self):
         NeuronObject._destroy(self)
