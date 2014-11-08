@@ -143,11 +143,14 @@ class Segment(NeuronObject):
                 setattr(self, name, mech)
             
             # Remove mechanisms that no longer exist
+            rem = []
             for name in self._mechs:
                 if name not in allnames:
                     self._mechs[name]._destroy()
-                    del self._mechs[name]
-                    delattr(self, name)
+                    rem.append(name)
+            for name in rem:
+                del self._mechs[name]
+                delattr(self, name)
             
         finally:
             # make sure NEURON objects can't be trapped in exception frame

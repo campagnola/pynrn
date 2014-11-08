@@ -205,12 +205,35 @@ class Section(NeuronObject):
         for seg in self._segments.values():
             seg._update_mechs()
 
-    def _remove(self, mech):
-        # Remove a distributed mechanism
+    def remove(self, mech_name):
+        """Remove a distributed mechanism from this sectrion.
+        """
+        if mech_name not in self.mechanisms:
+            raise NameError('Mecanism "%s" is not present in section.' % 
+                            mech_name)
         
-        raise NotImplementedError()
+        try:
+            mt = h.MechanismType(0)
+            sr = h.ref('')
+            removed = False
+            for i in range(int(mt.count())):
+                mt.select(i)
+                mt.selected(sr)
+                if sr[0] == mech_name:
+                    self.__nrnobj.push()
+                    mt.remove()
+                    h.pop_section()
+                    removed = True
+                    break
+            if not removed:
+                raise RuntimeError("Could not remove mechanism '%s' (this is "
+                                   "a bug)." % mech_name)
+        finally:
+            if 'mt' in locals():
+                del mt
+        
         # Inform all segments that mechanism list has changed.
-        for seg in self._segments:
+        for seg in self._segments.values():
             seg._update_mechs()
 
     @property
