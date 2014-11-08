@@ -174,6 +174,9 @@ class Section(NeuronObject):
     def connect(self, parent, parentx=1, childend=0):
         """Connect this section to another.
         
+        If the section is already connected to a parent, then raise an 
+        exception.
+        
         Parameters
         ----------
         parent : Section
@@ -186,7 +189,34 @@ class Section(NeuronObject):
         
         """
         self.check_destroyed()
+        if self.parent is not None:
+            raise RuntimeError("Section is already connected to a parent.")
+        if not isinstance(parent, Section):
+            raise TypeError("parent must be a Section instance.")
+        try:
+            childend = float(childend)
+        except Exception:
+            raise TypeError("childend must be float type")
+        if childend not in [0, 1]:
+            raise ValueError("childend must be 0 or 1")
+        try:
+            parentx = float(parentx)
+        except Exception:
+            raise TypeError("parentx must be float type")
+        if not (0 <= parentx <= 1):
+            raise ValueError("parentx must be float between 0 and 1 inclusive")
+        
         self.__nrnobj.connect(parent.__nrnobj, parentx, childend)
+        
+    def disconnect(self):
+        """Disconnect this section from its parent. 
+        
+        If the section is not connected to a parent, then raise an exception.
+        """
+        if self.parent is None:
+            raise RuntimeError("Section is not connected to a parent.")
+        
+        h.disconnect(sec=self.__nrnobj)
         
     def insert(self, mech_name):
         """Insert a new distributed mechanism into this Section.

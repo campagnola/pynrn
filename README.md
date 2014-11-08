@@ -48,9 +48,12 @@ Todo
 ----
 
 * detach / reattach point processes
-* remove dist mechanisms
 * netcon
 * documentation for builtin pp / ac classes
+* consistent argument checking
 * morphology
 * Parallel contexts
-* extracellumar mechanisms
+* unit tests:
+    - make sure PointProcess.section does not leak a reference by creating segment
+    
+    

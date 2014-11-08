@@ -62,7 +62,7 @@ class Mechanism(NeuronObject):
         Raise NameError if the name is not recognized. Names beginning with 
         an underscore will be assigned as normal python attributes.
         """
-        if attr.startswith('_'):
+        if attr.startswith('_') or hasattr(self, attr):
             return NeuronObject.__setattr__(self, attr, val)
         elif attr in self.__dict__.get('_variables', []):
             self.check_destroyed()
@@ -187,6 +187,10 @@ class Mechanism(NeuronObject):
                 
         return Mechanism._mech_types
 
+    def _destroy(self):
+        if self.destroyed:
+            return
+        self.__nrnobj = None
 
 # Cache this data now because the results from MechanismStandard change
 # after some interactions with NEURON. See:
@@ -230,18 +234,23 @@ class PointProcess(Mechanism):
     """
     all_point_processes = weakref.WeakValueDictionary()
     
-    def __init__(self, pos, section, name=None):
+    def __init__(self, loc, section, name=None):
         from .section import Section
-        if not isinstance(pos, float):
-            raise TypeError("pos argument must be float (got %s)." % type(pos))
+        try:
+            loc = float(loc)
+        except Exception:
+            raise TypeError("loc argument must be float (got %s)." % type(loc))
+        if not (0 <= loc <= 1):
+            raise ValueError("loc argument must be between 0 and 1 inclusive.")
+        
         if not isinstance(section, Section):
             raise TypeError("section argument must be Section instance (got %s)."
                             % type(section))
-        self._section = weakref.ref(section)
-        self._pos = pos
+        
         try:
             mech_name = self.__class__.__name__
-            pproc = getattr(h, mech_name)(pos, section)
+            pproc = getattr(h, mech_name)(loc, section)
+            self.__nrnobj = pproc  # we'll keep a separate ref from Mechanism
             Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name)
             if name is None:
                 name = pproc.hname()
@@ -269,14 +278,35 @@ class PointProcess(Mechanism):
     def section(self):
         """The section that this point process is connected to.
         """
-        return self._section()
-    
+        from .section import Section
+        return Section._get(self.__nrnobj.get_segment().sec)
+
     @property
-    def position(self):
-        """The position of the point process along the length of its host 
-        section.
+    def segment(self):
+        """The Segment that this point process is connected to.
         """
-        return self._pos
+        return self.section(self.location)
+   
+    @property
+    def location(self):
+        """The location of the point process (0 to 1) along the length of its 
+        host section.
+        """
+        return self.__nrnobj.get_loc()
+
+    @location.setter
+    def location(self, loc):
+        try:
+            loc = float(loc)
+        except Exception:
+            raise TypeError("location must be float (got %s)." % type(loc))
+        self.__nrnobj.loc(loc)
+
+    def _destroy(self):
+        if self.destroyed:
+            return
+        self.__nrnobj = None
+        Mechanism._destroy(self)
 
 
 class ArtificialCell(Mechanism):
