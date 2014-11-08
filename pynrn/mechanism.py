@@ -5,6 +5,11 @@ from .reference import FloatVar
 import collections
 
 
+# Note: this list is extended at the end of the module.
+__all__ = ['Mechanism', 'DistributedMechanism', 'PointProcess', 
+           'ArtificialCell']
+
+
 class Mechanism(NeuronObject):
     """Base class for NEURON mechanisms including distributed mechanisms, 
     point processes, and artificial cells.
@@ -248,20 +253,34 @@ class DistributedMechanism(Mechanism):
 
 
 class PointProcess(Mechanism):
-    def __init__(self, x, section):
+    def __init__(self, pos, section):
+        from .section import Section
         if not isinstance(x, float):
             raise TypeError("x argument must be float (got %s)." % type(x))
         if not isinstance(section, Section):
             raise TypeError("section argument must be Section instance (got %s)."
                             % type(section))
         self._section = weakref.ref(section)
-        self._x = x
+        self._pos = pos
         try:
             pproc = getattr(h, self.__class__.__name__)(pos, section)
             Mechanism.__init__(self, _nrnobj=pproc)
         finally:
             if 'pproc' in locals():
                 del pproc
+    
+    @property
+    def section(self):
+        """The section that this point process is connected to.
+        """
+        return self._section()
+    
+    @property
+    def position(self):
+        """The position of the point process along the length of its host 
+        section.
+        """
+        return self._pos
 
 
 class ArtificialCell(Mechanism):
@@ -272,3 +291,16 @@ class ArtificialCell(Mechanism):
         finally:
             if 'cell' in locals():
                 del cell
+
+
+# make new subclasses for all point process and artificial cell types
+all_mechs = Mechanism.all_mechanism_types()
+for name,mech in all_mechs.items():
+    if not mech['point_process']:
+        continue
+    if mech['artificial_cell']:
+        m_class = type(name, (ArtificialCell,), {})
+    else:
+        m_class = type(name, (PointProcess,), {})
+    globals()[name] = m_class
+    __all__.append(name)

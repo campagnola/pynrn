@@ -47,7 +47,9 @@ Incompatibilities with NEURON+Python API
 Todo
 ----
 
-* Point processes
-* Artificial cells
+* detach / reattach point processes
+* remove dist mechanisms
+* netcon
+* documentation for builtin pp / ac classes
 * Parallel contexts
 

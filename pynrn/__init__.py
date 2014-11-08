@@ -24,5 +24,5 @@ Todo:
 from .context import Context
 from .section import Section
 from .segment import Segment
-from .mechanism import Mechanism, DistributedMechanism, PointProcess, ArtificialCell 
+from .mechanism import *
 from .vector import Vector
