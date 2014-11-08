@@ -13,6 +13,7 @@ class FloatVar(float):
     def __new__(cls, source, attr, val):
         f = float.__new__(cls, val)
         f._source = weakref.ref(source)
+        f._source_name = source.name
         f._attr = attr
         return f
 
@@ -35,7 +36,8 @@ class FloatVar(float):
         source = self._source()
         if source is None:
             raise RuntimeError('Cannot reference "%s" because source object '
-                               'has already been deleted.' % self._attr)
+                               '"%s" has already been deleted.' % 
+                               (self._attr, self._source_name))
         return self._source()._get_ref(self._attr)
 
     #def __repr__(self):

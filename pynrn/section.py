@@ -11,17 +11,12 @@ class Section(NeuronObject):
     allsec = weakref.WeakValueDictionary()
     
     def __init__(self, name=None, **kwds):
-        # In order to ensure that we can uniquely map each NEURON section to
-        # a single Section instance, they must have unique names. Therefore,
-        # we do not allow the user to set the name of the NEURON section.
-        self._name = name
-        
-        # Keep a dict of all mechanisms inserted into this section
-        self._mechanisms = {}
-        
         # To ensure we can destroy this Secion on demand, we must know all of
         # the Segments that reference this Section.
-        self._segments = weakref.WeakValueDictionary()
+        # Note: don't use weak references here! We don't want to recreate
+        # sec(0.5) at every access.
+        self._segments = {}
+        
         NeuronObject.__init__(self)
         
         # Create underlying Section and SectionRef objects
@@ -30,6 +25,13 @@ class Section(NeuronObject):
         else:
             self.__nrnobj = h.Section()
         self.__secref = h.SectionRef(sec=self.__nrnobj)
+
+        # In order to ensure that we can uniquely map each NEURON section to
+        # a single Section instance, they must have unique names. Therefore,
+        # we do not allow the user to set the name of the NEURON section.
+        if name is None:
+            name = self.__nrnobj.name()
+        self._name = name
         
         # Register the section's name to ensure we won't create a new wrapper
         # for the same section.
@@ -43,6 +45,28 @@ class Section(NeuronObject):
         was provided.
         """
         return self._name
+
+    @property
+    def L(self):
+        """The length of this section. 
+        """
+        self.check_destroyed()
+        return self.__nrnobj.L
+    
+    @L.setter
+    def L(self, l):
+        self.__nrnobj.L = l
+    
+    @property
+    def Ra(self):
+        """The axial resistivity of this section in S/cm. 
+        """
+        self.check_destroyed()
+        return self.__nrnobj.Ra
+    
+    @Ra.setter
+    def Ra(self, ra):
+        self.__nrnobj.Ra = ra
 
     @property
     def nseg(self):
@@ -166,8 +190,6 @@ class Section(NeuronObject):
     def insert(self, mech_name):
         """Insert a new distributed mechanism into this Section.
         
-        Returns the Mechanism instance that was created. 
-        
         If the mechanism name is not known to NEURON or has already been 
         inserted into this Section, an error is raised.
         
@@ -175,20 +197,9 @@ class Section(NeuronObject):
         --------
         
         Mechanism.all_mechanism_types()
-        Section.mechanisms()
         """
         self.check_destroyed()
-        if mech_name in self._mechanisms:
-            return ValueError("Mechanism type '%s' is already inserted into "
-                              "%s." % (mech_name, self))
-        mech = Mechanism.create(mech_name, self)
-        return mech
-    
-    def _insert(self, mech):
-        # Insert a distributed mechanism
-        # (this is called by Mechanism.__init__)
-        self.__nrnobj.insert(mech.type)
-        self._mechanisms[mech.type] = mech
+        self.__nrnobj.insert(mech_name)
         # Inform all segments that mechanism list has changed.
         for seg in self._segments.values():
             seg._update_mechs()
@@ -203,10 +214,10 @@ class Section(NeuronObject):
 
     @property
     def mechanisms(self):
-        """A dictionary of all distributed mechanisms inserted into this Section.
+        """List of the names of all distributed mechanisms inserted in this
+        section.
         """
-        self.check_destroyed()
-        return self._mechanisms.copy()
+        return self(0.5).mechanisms.keys()
 
     @property
     def point_processes(self):

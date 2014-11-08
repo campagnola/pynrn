@@ -14,16 +14,22 @@ class NeuronObject(object):
         ctx = Context.active()
         if ctx is None:
             ctx = Context()
-        self._context = ctx
+        self.__context = ctx
         ctx._add(self)
-        self._destroyed = False
+        self.__destroyed = False
+
+    @property
+    def context(self):
+        """The Context to which this object belongs.
+        """
+        return self.__context
 
     @property
     def destroyed(self):
         """Bool indicating whether the underlying NEURON object has been 
         destroyed.
         """
-        return self._destroyed
+        return self.__destroyed
 
     def check_destroyed(self):
         if self.destroyed:
@@ -37,8 +43,8 @@ class NeuronObject(object):
         context; subclasses must extend this method to remove references to
         NEURON objects.
         """
-        if self._destroyed:
+        if self.__destroyed:
             return
-        self._context._remove(self)
-        self._destroyed = True
+        self.__context._remove(self)
+        self.__destroyed = True
 
