@@ -251,6 +251,11 @@ class DistributedMechanism(Mechanism):
         self._segment = weakref.ref(kwds.pop('segment'))
         Mechanism.__init__(self, **kwds)
 
+    @classmethod
+    def create(self, **kwds):
+        cls = globals()['DistributedMechanism_' + kwds['_nrnobj'].name()]
+        return cls(**kwds)
+        
 
 class PointProcess(Mechanism):
     def __init__(self, pos, section):
@@ -293,14 +298,15 @@ class ArtificialCell(Mechanism):
                 del cell
 
 
-# make new subclasses for all point process and artificial cell types
+# make new subclasses for all mechanism types
 all_mechs = Mechanism.all_mechanism_types()
 for name,mech in all_mechs.items():
     if not mech['point_process']:
-        continue
-    if mech['artificial_cell']:
-        m_class = type(name, (ArtificialCell,), {})
+        m_class = type('DistributedMechanism_' + name, (DistributedMechanism,), {})
     else:
-        m_class = type(name, (PointProcess,), {})
-    globals()[name] = m_class
-    __all__.append(name)
+        if mech['artificial_cell']:
+            m_class = type(name, (ArtificialCell,), {})
+        else:
+            m_class = type(name, (PointProcess,), {})
+        __all__.append(m_class.__name__)
+    globals()[m_class.__name__] = m_class

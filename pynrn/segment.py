@@ -124,7 +124,7 @@ class Segment(NeuronObject):
                 allnames.append(name)
                 if name in self._mechs:
                     continue
-                mech = DistributedMechanism(_nrnobj=mech, segment=self)
+                mech = DistributedMechanism.create(_nrnobj=mech, segment=self)
                 self._mechs[name] = mech
                 setattr(self, name, mech)
             

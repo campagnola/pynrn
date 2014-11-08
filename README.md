@@ -51,5 +51,6 @@ Todo
 * remove dist mechanisms
 * netcon
 * documentation for builtin pp / ac classes
+* morphology
 * Parallel contexts
-
+* extracellumar mechanisms
