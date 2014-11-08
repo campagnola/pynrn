@@ -6,7 +6,8 @@ from .mechanism import Mechanism
 
 
 class Section(NeuronObject):
-    
+    """A Section is the basic unit of membrane for simulating a neuron.
+    """
     # A weak dictionary containing all currently living Section instances.
     allsec = weakref.WeakValueDictionary()
     
@@ -110,7 +111,7 @@ class Section(NeuronObject):
         
         The true parent is usually the same as the parent, except in the case 
         where the section is _effectively_ attached to its grandparent by
-        connecting to the base of its parent. For example:
+        connecting to the base of its parent. For example::
         
             root = Section()
             dend1 = Section()

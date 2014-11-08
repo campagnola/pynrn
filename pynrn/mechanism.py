@@ -186,53 +186,12 @@ class Mechanism(NeuronObject):
                     Mechanism._mech_types[name] = desc
                 
         return Mechanism._mech_types
-    
-    #@classmethod
-    #def create(cls, type, *args, **kwds):
-        #mech_info = cls.all_mechanism_types().get(type, None)
-        #if mech_info is None:
-            #raise KeyError("Unknown mechanism type '%s'. For a complete list, "
-                           #"see Mechanism.all_mechanism_types()." % type)
-        #mech_info = mech_info.copy()
-        
-        #pp = mech_info.pop('point_process')
-        #ac = mech_info.pop('artificial_cell')
-        #for k in mech_info:
-            #if k in kwds:
-                #raise TypeError("Invalid keyword argument %s" % k)
-        #kwds.update(mech_info)
-        #kwds['mech_type'] = type
-        
-        #if pp:
-            #if ac:
-                #return ArtificialCell(*args, **kwds)
-            #else:
-                #return PointProcess(*args, **kwds)
-        #else:
-            #return DistributedMechanism(*args, **kwds)
+
 
 # Cache this data now because the results from MechanismStandard change
 # after some interactions with NEURON. See:
 # http://www.neuron.yale.edu/phpBB/viewtopic.php?f=8&t=3219
 Mechanism.all_mechanism_types()
-
-
-#class DistributedMechanism(Mechanism):
-    #def __init__(self, section, **kwds):
-        #Mechanism.__init__(self, **kwds)
-        #self._section = weakref.ref(section)
-        #section._insert(self)
-    
-    #@property
-    #def section(self):
-        #return self._section()
-
-    #def remove(self):
-        #"""Remove this mechanism from its host section.
-        
-        #After removal, the mechanism may not be re-used.
-        #"""
-        #raise NotImplementedError()
 
 
 class DistributedMechanism(Mechanism):
@@ -258,6 +217,8 @@ class DistributedMechanism(Mechanism):
         
 
 class PointProcess(Mechanism):
+    """Point processes are mechanisms that act on a single Segment.
+    """
     def __init__(self, pos, section):
         from .section import Section
         if not isinstance(x, float):
@@ -289,6 +250,9 @@ class PointProcess(Mechanism):
 
 
 class ArtificialCell(Mechanism):
+    """Artificial cells are mechanisms that generate net events; they do not 
+    interact directly with any cell membranes.
+    """
     def __init__(self):
         try:
             cell = getattr(h, self.__class__.__name__)()
