@@ -1,7 +1,8 @@
 import weakref
 from .neuron_object import NeuronObject
 from .reference import FloatVar
-from .mechanism import DistributedMechanism
+from .mechanism import DistributedMechanism, PointProcess
+
 
 # Todo: decide whether to disambiguate 'Segment'.
 #   - A segment is a sub-compartment of a section
@@ -93,6 +94,19 @@ class Segment(NeuronObject):
         self.check_destroyed()
         return self._mechs.copy()
 
+    @property
+    def point_processes(self):
+        """A list of all point processes attached to this Segment.
+        """
+        all_pp = []
+        try:
+            for pp in self.__nrnobj.point_processes():
+                all_pp.append(PointProcess._get(pp))
+        finally:
+            if 'pp' in locals():
+                del pp
+        return all_pp
+
     def _get_ref(self, attr):
         """Return a reference to a variable on the underlying NEURON object
         """
@@ -137,4 +151,5 @@ class Segment(NeuronObject):
             
         finally:
             # make sure NEURON objects can't be trapped in exception frame
-            del mech
+            if 'mech' in locals():
+                del mech

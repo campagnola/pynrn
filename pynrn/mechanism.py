@@ -24,13 +24,13 @@ class Mechanism(NeuronObject):
         NeuronObject.__init__(self)
         self._variables = []
         self.__nrnobj = kwds.pop('_nrnobj')
-        self._name = self.__nrnobj.name()
-        self._mech_desc = self.all_mechanism_types()[self._name]
+        self._mech_name = kwds.pop('mech_name')
+        self._mech_desc = self.all_mechanism_types()[self._mech_name]
 
         # Populate all dynamic attributes from the mechanism.
         # We are ignoring 'globals' because these to not appear to be 
         # accessible in python.
-        suffix = '_' + self._name
+        suffix = '_' + self._mech_name
         for group in ['parameters', 'assigned', 'state']:
             for vname,vsize in self._mech_desc[group].items():
                 if vname.endswith(suffix):
@@ -40,8 +40,8 @@ class Mechanism(NeuronObject):
                 self.__dict__[vname] = None
 
     @property
-    def name(self):
-        return self._name
+    def mechanism_name(self):
+        return self._mech_name
 
     def __getattribute__(self, attr):
         """If a mechanism variable is requested, then return a FloatVar reference
@@ -207,6 +207,7 @@ class DistributedMechanism(Mechanism):
         if '_nrnobj' not in kwds:
             raise TypeError("DistributedMechanism instances should only be "
                             "accessed from Segments.")
+        kwds['mech_name'] = kwds['_nrnobj'].name()
         self._segment = weakref.ref(kwds.pop('segment'))
         Mechanism.__init__(self, **kwds)
 
@@ -215,25 +216,54 @@ class DistributedMechanism(Mechanism):
         cls = globals()['DistributedMechanism_' + kwds['_nrnobj'].name()]
         return cls(**kwds)
         
+    @property
+    def segment(self):
+        return self._segment()
+        
+    @property
+    def name(self):
+        return self.segment.name + "." + self.mechanism_name
+    
 
 class PointProcess(Mechanism):
     """Point processes are mechanisms that act on a single Segment.
     """
-    def __init__(self, pos, section):
+    all_point_processes = weakref.WeakValueDictionary()
+    
+    def __init__(self, pos, section, name=None):
         from .section import Section
-        if not isinstance(x, float):
-            raise TypeError("x argument must be float (got %s)." % type(x))
+        if not isinstance(pos, float):
+            raise TypeError("pos argument must be float (got %s)." % type(pos))
         if not isinstance(section, Section):
             raise TypeError("section argument must be Section instance (got %s)."
                             % type(section))
         self._section = weakref.ref(section)
         self._pos = pos
         try:
-            pproc = getattr(h, self.__class__.__name__)(pos, section)
-            Mechanism.__init__(self, _nrnobj=pproc)
+            mech_name = self.__class__.__name__
+            pproc = getattr(h, mech_name)(pos, section)
+            Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name)
+            if name is None:
+                name = pproc.hname()
+            self._name = name
+            PointProcess.all_point_processes[pproc.hname()] = self
         finally:
             if 'pproc' in locals():
                 del pproc
+                
+    @classmethod
+    def _get(cls, pproc):
+        """Return the PointProcess instance for the specified NEURON point
+        process.
+        """
+        try:
+            return PointProcess.all_point_processes[pproc.hname()]
+        except:
+            del pproc
+
+    @property
+    def name(self):
+        return self._name
     
     @property
     def section(self):
@@ -253,14 +283,22 @@ class ArtificialCell(Mechanism):
     """Artificial cells are mechanisms that generate net events; they do not 
     interact directly with any cell membranes.
     """
-    def __init__(self):
+    def __init__(self, name=None):
         try:
-            cell = getattr(h, self.__class__.__name__)()
-            Mechanism.__init__(self, _nrnobj=cell)
+            mech_name = self.__class__.__name__
+            cell = getattr(h, mech_name)()
+            Mechanism.__init__(self, _nrnobj=cell, mech_name=mech_name)
+            if name is None:
+                name = cell.hname()
+            self._name = name
         finally:
             if 'cell' in locals():
                 del cell
 
+    @property
+    def name(self):
+        return self._name
+        
 
 # make new subclasses for all mechanism types
 all_mechs = Mechanism.all_mechanism_types()

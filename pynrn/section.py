@@ -83,7 +83,7 @@ class Section(NeuronObject):
     @nseg.setter
     def nseg(self, n):
         self.check_destroyed()
-        self._forget_segments()
+        #self._forget_segments()  # don't think this is necessary.
         self.__nrnobj.nseg = n
         
     @property
@@ -225,7 +225,10 @@ class Section(NeuronObject):
         """A list of all point processes inserted into this Section.
         """
         self.check_destroyed()
-        
+        pp = []
+        for seg in self:
+            pp.extend(seg.point_processes)
+        return pp
 
     def __call__(self, x):
         """Return a Segment pointing to position x on this Section.
