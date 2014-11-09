@@ -15,14 +15,20 @@ Features
 * Explicit and automatic creation / deletion of underlying NEURON objects
 * Fully documented, unit-tested API
 * No HocObjects
-* Pure python (but depends on standard neuron package)
 * No "ghost" attributes; dir(obj) is always accurate and comprehensive
 * No "segment._ref_XX" needed; just use "segment.XX"
+* All methods are strictly type-checked; no silent failures for incorrectly 
+  used methods
+* No segmentation faults for misuse of API (although some pathological cases
+  will still crash)
+* Pure python (but depends on standard neuron package)
 
 
 Incompatibilities with NEURON+Python API
 ----------------------------------------
 
+* No concept of a section stack (push / pop / cas); sections are always 
+  referred to explicitly.
 * There is no equivalent "neuron.h" namespace; most of these features are 
   wrapped into classes.
     * For running simulations, see Context.init, .run, .advance, .t, .celsius,
@@ -47,13 +53,18 @@ Incompatibilities with NEURON+Python API
 Todo
 ----
 
-* detach / reattach point processes
 * netcon
 * documentation for builtin pp / ac classes
+* document class incompatibilities in class docstrings
+* make sure that anything looking like a drop-in replacement either IS a drop-in
+  replacement or will give helpful error messages when used like the original
+  API allows
+* make properties / methods consistent across classes
+    - Segment.section, PointProcess.section, ...
+    - Segment.x, PointProcess.loc, ...
 * consistent argument checking
-* morphology
 * Parallel contexts
 * unit tests:
     - make sure PointProcess.section does not leak a reference by creating segment
-    
+* Proper teardown in Context._destroy
     

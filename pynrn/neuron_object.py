@@ -32,10 +32,10 @@ class NeuronObject(object):
         return self.__destroyed
 
     def check_destroyed(self):
-        if self.destroyed:
+        if self.__destroyed:
             raise RuntimeError("Underlying NEURON object has already been "
                                "destroyed.")
-        
+    
     def _destroy(self):
         """ Destroy the underlying NEURON object(s).
         

@@ -23,8 +23,16 @@ class Segment(NeuronObject):
 
     @property
     def name(self):
+        """The name of the segment, defined as "section_name(location)".
+        """
         return self._section().name + "(%0.2f)" % self.x
-        
+    
+    @property
+    def section(self):
+        """The section instance to which this Segment belongs.
+        """
+        return self._section()
+    
     @property
     def x(self):
         """ The location of this segment (0 <= x <= 1) along the length of its 
@@ -46,7 +54,7 @@ class Segment(NeuronObject):
         self.__nrnobj.v = v
 
     def area(self):
-        """Return the area of the membrane for this segment.
+        """Return the surface area of the membrane for this segment.
         """
         self.check_destroyed()
         return self.__nrnobj.area()

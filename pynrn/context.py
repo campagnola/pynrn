@@ -1,4 +1,5 @@
 import weakref
+import os, sys
 from neuron import h
 
 
@@ -20,12 +21,12 @@ class Context(object):
         """
         return cls._active
     
-    def __init__(self, finish_on_error=True):
+    def __init__(self, ignore_vectors=False):
         if Context._active is not None:
             raise RuntimeError("There is already an active simulation context."
-                               " Call finish() on that context before starting"
+                               " Call Context.active.finish() before starting"
                                " another.")
-        self._finish_on_error = finish_on_error
+        self._ignore_vectors = ignore_vectors
         self._objects = weakref.WeakSet()
         self._dt = 0.025
         self._celsius = 25.0
@@ -113,10 +114,14 @@ class Context(object):
     def finish(self):
         self._destroy()
         Context._active = None
+        #sys.exc_clear()
         
     def _destroy(self):
+        # Todo: proper teardown of all objects in the correct order
         # SEE: http://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3213
         for o in list(self._objects):
+            if self._ignore_vectors and isinstance(o, Vector):
+                continue
             o._destroy()
     
     def verify(self):
@@ -125,7 +130,20 @@ class Context(object):
         
         If there is a mismatch, an exception is raised.
         """
-        from .section import Section
+        from . import (Section, Segment, DistributedMechanism, PointProcess, 
+                       ArtificialCell)
+
+        # collect and sort all objects managed by this context
+        allobjs = {Section: [], Segment: [], DistributedMechanism: [],
+                   PointProcess: [], ArtificialCell: []}
+        deadobjs = dict([(k, []) for k in allobjs])
+        for obj in self._objects:
+            for k in allobjs:
+                if isinstance(obj, k):
+                    if obj.destroyed:
+                        deadobjs[k].append(obj)
+                    else:
+                        allobjs[k].append(obj)
         
         # Note: need to be extra careful about leaking references from here!
         # NO exceptions allowed until NEURON references are removed!
@@ -135,23 +153,18 @@ class Context(object):
             extras = list()
             for sec in h.allsec():
                 wrapper = Section._get(sec, create=False)
-                if wrapper is None:
-                    extras.append(sec.name())
-                else:
-                    checked.add(wrapper)
+                if wrapper is None or wrapper not in self._objects:
+                    raise RuntimeError("Section does not belong to this "
+                                       "context: %s" % sec.name())
+                checked.add(wrapper)
         finally:
             del sec
         
-        # NEURON secions present that the context doesn't know about
-        if len(extras) > 0:
-            raise Exception("Section(s) do not belong to this context: %s" %
-                        str(extras))
-        
         # Context sections present that NEURON doesn't know about
         mysec = set([x for x in self._objects if isinstance(x, Section)])
-        if len(mysec - checked) > 0:
-            raise Exception("Context has sections that are not known to "
-                            "NEURON: %s" % mysec)
+        if mysec != checked:
+            raise RuntimeError("Context has sections that are not known to "
+                               "NEURON: %s" % (mysec - checked))
         
         # TODO: check for artificial cells, point processes, vectors, etc.
         
@@ -160,4 +173,11 @@ class Context(object):
         return self
         
     def __exit__(self, *args):
+        # An error occurred AND an environment variable was given allowing pynrn
+        # to leave the context unfinished if an error occurred (to allow the
+        # context to be inspected by a debugger).
+        if args[0] is not None and os.getenv('PYNRN_DEBUG', '0') is not '0':
+            return
+        
+        # Otherwise, clean up when exiting the context. 
         self.finish()

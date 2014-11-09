@@ -10,6 +10,7 @@ class Section(NeuronObject):
     """
     # A weak dictionary containing all currently living Section instances.
     allsec = weakref.WeakValueDictionary()
+    _sec_index = 0
     
     def __init__(self, name=None, **kwds):
         # To ensure we can destroy this Secion on demand, we must know all of
@@ -24,7 +25,8 @@ class Section(NeuronObject):
         if '_nrnobj' in kwds:
             self.__nrnobj = kwds['_nrnobj']
         else:
-            self.__nrnobj = h.Section()
+            self.__nrnobj = h.Section(name="pynrn_sec_%d" % Section._sec_index)
+            Section._sec_index += 1
         self.__secref = h.SectionRef(sec=self.__nrnobj)
 
         # In order to ensure that we can uniquely map each NEURON section to

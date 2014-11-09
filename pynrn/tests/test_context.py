@@ -15,7 +15,7 @@ def test_verify():
         del sec
         
         sec = h.Section(name="TEST")  # bad!
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             ctx.verify()
         
         del sec  # better.
@@ -24,7 +24,7 @@ def test_verify():
         # very bad!
         del s1._Section__nrnobj
         del s1._Section__secref
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             ctx.verify()
         
         

@@ -62,11 +62,15 @@ class Mechanism(NeuronObject):
         Raise NameError if the name is not recognized. Names beginning with 
         an underscore will be assigned as normal python attributes.
         """
-        if attr.startswith('_') or hasattr(self, attr):
+        if attr.startswith('_'):
             return NeuronObject.__setattr__(self, attr, val)
-        elif attr in self.__dict__.get('_variables', []):
-            self.check_destroyed()
-            setattr(self.__nrnobj, attr, val)
+        
+        if hasattr(self, attr):
+            if attr in self.__dict__.get('_variables', []):
+                self.check_destroyed()
+                setattr(self.__nrnobj, attr, val)
+            else:
+                return NeuronObject.__setattr__(self, attr, val)
         else:
             raise NameError("Unknown attribute '%s' for mechanism '%s'." % 
                             (attr, self._name))
@@ -191,6 +195,8 @@ class Mechanism(NeuronObject):
         if self.destroyed:
             return
         self.__nrnobj = None
+        NeuronObject._destroy(self)
+
 
 # Cache this data now because the results from MechanismStandard change
 # after some interactions with NEURON. See:
@@ -231,25 +237,25 @@ class DistributedMechanism(Mechanism):
 
 class PointProcess(Mechanism):
     """Point processes are mechanisms that act on a single Segment.
+    
+    Notes
+    -----
+    
+    Several methods of the original PointProcess class are changed:
+    * .loc() => .attach()  
+    * .has_loc() => .attached
+    * .get_segment() => .segment
+    * .get_loc() => .segment.x
     """
     all_point_processes = weakref.WeakValueDictionary()
     
-    def __init__(self, loc, section, name=None):
+    def __init__(self, loc=None, sec=None, name=None):
         from .section import Section
-        try:
-            loc = float(loc)
-        except Exception:
-            raise TypeError("loc argument must be float (got %s)." % type(loc))
-        if not (0 <= loc <= 1):
-            raise ValueError("loc argument must be between 0 and 1 inclusive.")
-        
-        if not isinstance(section, Section):
-            raise TypeError("section argument must be Section instance (got %s)."
-                            % type(section))
+        from .segment import Segment
         
         try:
             mech_name = self.__class__.__name__
-            pproc = getattr(h, mech_name)(loc, section)
+            pproc = getattr(h, mech_name)()
             self.__nrnobj = pproc  # we'll keep a separate ref from Mechanism
             Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name)
             if name is None:
@@ -259,48 +265,122 @@ class PointProcess(Mechanism):
         finally:
             if 'pproc' in locals():
                 del pproc
+        
+        if isinstance(loc, Segment):
+            if sec is not None:
+                raise TypeError("sec must be None if loc is a Segment")
+            self.attach(loc)
+        elif loc is not None:
+            # For backward compatibility with NEURON
+            try:
+                loc = float(loc)
+            except Exception:
+                raise TypeError("loc must be float or Segment")
+            if not isinstance(sec, Section):
+                raise TypeError("sec must be a Section instance")
+            self.attach(sec(loc))
+        elif sec is not None:
+            raise TypeError("must supply loc and sec together")
                 
     @classmethod
     def _get(cls, pproc):
-        """Return the PointProcess instance for the specified NEURON point
-        process.
+        """Return the existing PointProcess instance for the specified NEURON 
+        point process. 
+        
+        Raise an exception if no instance is found.
         """
         try:
             return PointProcess.all_point_processes[pproc.hname()]
-        except:
+        finally:
             del pproc
 
     @property
     def name(self):
+        """The name given to this point process at initialization time.
+        """
         return self._name
+
+    @property
+    def attached(self):
+        """Boolean indicating whether this point process is currently attached
+        to a section.
+        """
+        self.check_destroyed()
+        return self.__nrnobj.has_loc() == 1
+
+    def attach(self, segment):
+        """Attach this point process to a specific segment.
+        
+        This method may be called any number of times to re-attach the point
+        process to other sections or to different segments on the same 
+        section (each call automatically disconnects the point process from its
+        previous attachment).
+        
+        Parameters
+        ----------
+        segment : Segment
+            Specifies the exact segment (section + location) to attach to.
+            
+        Notes
+        -----
+        
+        When the point process is attached, it moves to the _center_ of the 
+        segment containing the requested location. If the number of segments
+        in the section changes, then the point process will again move to the
+        nearest segment center. It is therefore recommended to set the location
+        of the point process only _after_ setting the number of segments in the
+        section.
+        
+        This method replaces the original PointProcess.loc().
+        """
+        self.check_destroyed()
+        from .segment import Segment
+        if not isinstance(segment, Segment):
+            raise TypeError("argument must be Segment instance")
+        # warning: don't use pproc.loc(float) because this uses CAS to 
+        # set section
+        self.__nrnobj.loc(segment._Segment__nrnobj)
     
     @property
     def section(self):
-        """The section that this point process is connected to.
+        """The section that this point process is attached to, or None if it
+        is not attached.
         """
+        if not self.attached:
+            return None
         from .section import Section
         return Section._get(self.__nrnobj.get_segment().sec)
 
     @property
     def segment(self):
-        """The Segment that this point process is connected to.
+        """The Segment that this point process is attached to, or None if it
+        is not attached.
         """
-        return self.section(self.location)
-   
-    @property
-    def location(self):
-        """The location of the point process (0 to 1) along the length of its 
-        host section.
-        """
-        return self.__nrnobj.get_loc()
+        if not self.attached:
+            return None
+        return self.section(self.__nrnobj.get_loc())
 
-    @location.setter
-    def location(self, loc):
-        try:
-            loc = float(loc)
-        except Exception:
-            raise TypeError("location must be float (got %s)." % type(loc))
-        self.__nrnobj.loc(loc)
+    #@property
+    #def location(self):
+        #"""The location of the point process (0 to 1) along the length of its 
+        #host section, or None if the point process is not attached to a 
+        #section.
+        
+        #Setting this property causes the point process to move to a new 
+        #location within the section it is currently attached to.
+        #"""
+        #if not self.attached:
+            #return None
+        #return self.__nrnobj.get_loc()
+
+    #@location.setter
+    #def location(self, loc):
+        #self.check_destroyed()
+        #try:
+            #loc = float(loc)
+        #except Exception:
+            #raise TypeError("location must be float (got %s)." % type(loc))
+        #self.attach(self.section(loc))
 
     def _destroy(self):
         if self.destroyed:
@@ -327,6 +407,8 @@ class ArtificialCell(Mechanism):
 
     @property
     def name(self):
+        """The name given to this artificial cell at initialization time.
+        """
         return self._name
         
 
