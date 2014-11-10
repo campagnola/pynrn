@@ -253,6 +253,8 @@ class PointProcess(Mechanism):
         from .section import Section
         from .segment import Segment
         
+        self._section = None
+        
         try:
             mech_name = self.__class__.__name__
             pproc = getattr(h, mech_name)()
@@ -337,6 +339,8 @@ class PointProcess(Mechanism):
         from .segment import Segment
         if not isinstance(segment, Segment):
             raise TypeError("argument must be Segment instance")
+        
+        self._section = segment.section
         # warning: don't use pproc.loc(float) because this uses CAS to 
         # set section
         self.__nrnobj.loc(segment._Segment__nrnobj)
@@ -348,8 +352,10 @@ class PointProcess(Mechanism):
         """
         if not self.attached:
             return None
-        from .section import Section
-        return Section._get(self.__nrnobj.get_segment().sec)
+        # warning: do not use pproc.get_segment() because this apparently
+        # creates a reference leak in NEURON. 
+        # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
+        return self._section
 
     @property
     def segment(self):
@@ -358,6 +364,9 @@ class PointProcess(Mechanism):
         """
         if not self.attached:
             return None
+        # warning: do not use pproc.get_segment() because this apparently
+        # creates a reference leak in NEURON
+        # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
         return self.section(self.__nrnobj.get_loc())
 
     #@property

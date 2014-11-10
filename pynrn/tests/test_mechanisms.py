@@ -31,8 +31,8 @@ def test_distributed():
 
 
 def test_pointprocess():
-    # Test creation / deletion
-    # (this has caused reference leaks in the past)
+    # Test workaround for reference leak
+    # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
     with pynrn.Context():
         sec = pynrn.Section()
         ic = pynrn.IClamp(name="some name")

@@ -8,7 +8,6 @@ import pynrn
 def test_section_topology():
     with pynrn.Context():
         s1 = pynrn.Section()
-        assert s1.name is None
         assert s1.nchild == 0
         assert s1.parent is None
         assert s1.trueparent is None
