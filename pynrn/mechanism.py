@@ -308,7 +308,10 @@ class PointProcess(Mechanism):
         to a section.
         """
         self.check_destroyed()
-        return self.__nrnobj.has_loc() == 1
+        attached = self.__nrnobj.has_loc() == 1.0
+        if not attached:
+            self._section = None
+        return attached
 
     def attach(self, segment):
         """Attach this point process to a specific segment.
@@ -340,7 +343,8 @@ class PointProcess(Mechanism):
         if not isinstance(segment, Segment):
             raise TypeError("argument must be Segment instance")
         
-        self._section = segment.section
+        self._section = weakref.ref(segment.section)
+        
         # warning: don't use pproc.loc(float) because this uses CAS to 
         # set section
         self.__nrnobj.loc(segment._Segment__nrnobj)
@@ -355,7 +359,7 @@ class PointProcess(Mechanism):
         # warning: do not use pproc.get_segment() because this apparently
         # creates a reference leak in NEURON. 
         # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
-        return self._section
+        return self._section()
 
     @property
     def segment(self):

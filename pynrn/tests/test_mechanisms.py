@@ -80,4 +80,14 @@ def test_pointprocess():
         sec2.nseg = 23
         sec.nseg = 32
     
-    
+        # test detection of lost attachment
+        sec = pynrn.Section()
+        ic = pynrn.IClamp(0.5, sec)
+        assert ic.attached
+        assert ic.segment.x == 0.5
+        sec._destroy()
+        assert ic.section is None
+        assert ic.segment is None
+        assert not ic.attached
+        
+        
