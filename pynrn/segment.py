@@ -121,9 +121,7 @@ class Segment(NeuronObject):
         # Note: variable references do not increase the refcount of their 
         # host Section.
         self.check_destroyed()
-        objname = '_' + self.__class__.__name__ + '__nrnobj'
-        nrnobj = getattr(self, objname)
-        return getattr(nrnobj, '_ref_' + attr)
+        return getattr(self.__nrnobj, '_ref_' + attr)
 
     def _destroy(self):
         if self.destroyed:

@@ -54,6 +54,8 @@ Todo
 ----
 
 * netcon
+* cvode
+* Parallel contexts
 * documentation for builtin pp / ac classes
 * document class incompatibilities in class docstrings
 * make sure that anything looking like a drop-in replacement either IS a drop-in
@@ -63,7 +65,6 @@ Todo
     - Segment.section, PointProcess.section, ...
     - Segment.x, PointProcess.loc, ...
 * consistent argument checking
-* Parallel contexts
 * unit tests:
     - make sure PointProcess.section does not leak a reference by creating segment
 * Proper teardown in Context._destroy

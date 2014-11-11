@@ -253,6 +253,9 @@ class PointProcess(Mechanism):
         from .section import Section
         from .segment import Segment
         
+        self._check_args(loc=(Segment, float, type(None)),
+                         sec=(Section, type(None)),
+                         name=(str, type(None)))
         self._section = None
         
         try:
@@ -270,20 +273,17 @@ class PointProcess(Mechanism):
         
         if isinstance(loc, Segment):
             if sec is not None:
-                raise TypeError("sec must be None if loc is a Segment")
+                raise TypeError("Argument sec must be None if loc is a Segment.")
             self.attach(loc)
         elif loc is not None:
             # For backward compatibility with NEURON
-            try:
-                loc = float(loc)
-            except Exception:
-                raise TypeError("loc must be float or Segment")
+            loc = float(loc)
             if not isinstance(sec, Section):
-                raise TypeError("sec must be a Section instance")
+                raise TypeError("Argument sec must be a Section instance when loc is float.")
             self.attach(sec(loc))
         elif sec is not None:
-            raise TypeError("must supply loc and sec together")
-                
+            raise TypeError("Argument sec is invalid if loc is None.")
+    
     @classmethod
     def _get(cls, pproc):
         """Return the existing PointProcess instance for the specified NEURON 
@@ -340,8 +340,7 @@ class PointProcess(Mechanism):
         """
         self.check_destroyed()
         from .segment import Segment
-        if not isinstance(segment, Segment):
-            raise TypeError("argument must be Segment instance")
+        self._check_args(segment=Segment)
         
         self._section = weakref.ref(segment.section)
         

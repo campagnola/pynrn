@@ -4,11 +4,14 @@ import weakref
 class FloatVar(float):
     """A float holding information about its source.
     
-    This class is used mainly to pass variable references to Vectors. For
-    example::
+    FloatVar instances are usually created by accessing a range variable from
+    a mechanism. The FloatVar can be used immediately as a float giving the 
+    value of the referenced variable, or it can be passed to objects like
+    Vector or NetCon which monitor the original range variable.
     
-        s = Section()
-        vm = Vector(record=s(0.5).v)
+    The value of a FloatVar is constant; it does not update when the source
+    value changes.
+        
     """
     def __new__(cls, source, attr, val):
         f = float.__new__(cls, val)
@@ -38,7 +41,10 @@ class FloatVar(float):
             raise RuntimeError('Cannot reference "%s" because source object '
                                '"%s" has already been deleted.' % 
                                (self._attr, self._source_name))
-        return self._source()._get_ref(self._attr)
+        print "GET_REF"
+        ref = self._source()._get_ref(self._attr)
+        print "GOT REF", ref
+        return ref
 
     #def __repr__(self):
         #return ("<FloatVar value=%g source=%s.%s at 0x%x>" % 

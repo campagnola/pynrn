@@ -289,12 +289,9 @@ class Section(NeuronObject):
         """Return a Segment pointing to position x on this Section.
         """
         self.check_destroyed()
-        try:
-            x = float(x)
-        except Exception:
-            raise TypeError("x must be float between 0 and 1 inclusive.")
-        if x < 0 or x > 1:
-            raise ValueError("x must be float between 0 and 1 inclusive.")
+        self._check_args(x=float)
+        self._check_bounds(x=(">= 0", "<= 1"))
+        
         if x not in self._segments:
             seg = Segment(_nrnobj=self.__nrnobj(x), section=self)
             self._segments[x] = seg
@@ -357,3 +354,8 @@ class Section(NeuronObject):
             return Section(_nrnobj=sec)
         else:
             return None
+
+    def _push(self):
+        """Push the NEURON object onto the section stack.
+        """
+        self.__nrnobj.push()

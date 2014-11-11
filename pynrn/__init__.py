@@ -26,3 +26,4 @@ from .section import Section
 from .segment import Segment
 from .mechanism import *
 from .vector import Vector
+from .netcon import NetCon
