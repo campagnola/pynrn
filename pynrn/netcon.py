@@ -68,7 +68,6 @@ class NetCon(NeuronObject):
             
         # source section must be CAS
         source.source.section._push()
-        print "SOURCE:", source._get_ref()
         if target is None:
             self._target = None
             self.__nrnobj = h.NetCon(source._get_ref(), h.ref(None), 
@@ -88,10 +87,10 @@ class NetCon(NeuronObject):
         return self._target()
 
     @target.setter
-    def target(self, t):
+    def target(self, target):
         from .mechanism import PointProcess, ArtificialCell
-        self._check_args(t, (PointProcess, ArtificialCell))
-        if isinstance(t, PointProcess) and not t.attached:
+        self._check_args(target=(PointProcess, ArtificialCell, type(None)))
+        if isinstance(target, PointProcess) and not target.attached:
             raise TypeError("PointProcess target must be attached to a Section "
                             "before connecting NetCon.")
         if target is None:
@@ -99,7 +98,7 @@ class NetCon(NeuronObject):
             self.__nrnobj.setpost(h.ref(None))
         else:
             self._target = weakref.ref(target)
-            self.__nrnobj.setpost(t._Mechanism__nrnobj)
+            self.__nrnobj.setpost(target._Mechanism__nrnobj)
         
         if self._weight is not None:
             self._weight._update_count()

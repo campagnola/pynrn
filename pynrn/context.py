@@ -131,11 +131,11 @@ class Context(object):
         If there is a mismatch, an exception is raised.
         """
         from . import (Section, Segment, DistributedMechanism, PointProcess, 
-                       ArtificialCell)
+                       ArtificialCell, NetCon)
 
         # collect and sort all objects managed by this context
         allobjs = {Section: [], Segment: [], DistributedMechanism: [],
-                   PointProcess: [], ArtificialCell: []}
+                   PointProcess: [], ArtificialCell: [], NetCon: []}
         deadobjs = dict([(k, []) for k in allobjs])
         for obj in self._objects:
             for k in allobjs:

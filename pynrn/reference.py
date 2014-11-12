@@ -28,7 +28,6 @@ class FloatVar(float):
     def source(self):
         return self._source()
 
-    @property
     def _get_ref(self):
         """Reference to the source for this value.
         
@@ -41,10 +40,7 @@ class FloatVar(float):
             raise RuntimeError('Cannot reference "%s" because source object '
                                '"%s" has already been deleted.' % 
                                (self._attr, self._source_name))
-        print "GET_REF"
-        ref = self._source()._get_ref(self._attr)
-        print "GOT REF", ref
-        return ref
+        return self._source()._get_ref(self._attr)
 
     #def __repr__(self):
         #return ("<FloatVar value=%g source=%s.%s at 0x%x>" % 
