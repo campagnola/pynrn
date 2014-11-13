@@ -42,7 +42,3 @@ class FloatVar(float):
                                '"%s" has already been deleted.' % 
                                (self._attr, self._source_name))
         return self._source()._get_ref(self._attr)
-
-    #def __repr__(self):
-        #return ("<FloatVar value=%g source=%s.%s at 0x%x>" % 
-                #(self, self.source.name, self.name, id(self)))

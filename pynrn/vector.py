@@ -13,9 +13,7 @@ class Vector(NeuronObject):
             
     def record(self, ref):
         self.check_destroyed()
-        if not isinstance(ref, FloatVar):
-            raise TypeError("Cannot record from object of type %s" % 
-                            type(ref))
+        self._check_args(ref=FloatVar)
         self.__nrnobj.record(ref._get_ref())
             
     def _destroy(self):

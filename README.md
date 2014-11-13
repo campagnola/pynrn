@@ -8,20 +8,19 @@ NEURON, but does not attempt to provide complete compatibility.
 Features
 --------
 
-* Proper python classes for all NEURON object types
+* Proper python classes for all NEURON object types; no HocObjects.
 * Context management: guaranteed separation between subsequent runs.
 * Straightorward introspection of NEURON kernel, available mechanisms, 
-  and mechanism variables
-* Explicit and automatic creation / deletion of underlying NEURON objects
-* Fully documented, unit-tested API
-* No HocObjects
-* No "ghost" attributes; dir(obj) is always accurate and comprehensive
-* No "segment._ref_XX" needed; just use "segment.XX"
+  and mechanism variables.
+* Explicit and automatic creation / deletion of underlying NEURON objects.
+* Fully documented, unit-tested API.
+* No "ghost" attributes; dir(obj) is always accurate and comprehensive.
+* No "_ref_XX" needed to reference range variables.
 * All methods are strictly type-checked; no silent failures for incorrectly 
-  used methods
+  used methods.
 * No segmentation faults for misuse of API (although some pathological cases
-  will still crash)
-* Pure python (but depends on standard neuron package)
+  will still crash).
+* Pure python (but depends on standard NEURON package).
 
 
 Incompatibilities with NEURON+Python API
@@ -53,7 +52,6 @@ Incompatibilities with NEURON+Python API
 Todo
 ----
 
-* netcon
 * cvode
 * Parallel contexts
 * documentation for builtin pp / ac classes
@@ -65,7 +63,5 @@ Todo
     - Segment.section, PointProcess.section, ...
     - Segment.x, PointProcess.loc, ...
 * consistent argument checking
-* unit tests:
-    - make sure PointProcess.section does not leak a reference by creating segment
 * Proper teardown in Context._destroy
     
