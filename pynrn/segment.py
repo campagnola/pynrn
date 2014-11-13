@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import weakref
 from .neuron_object import NeuronObject
 from .reference import FloatVar
@@ -13,12 +14,12 @@ class Segment(NeuronObject):
     """Segments are pointers to a specific location on a Section.
     """
     def __init__(self, **kwds):
-        NeuronObject.__init__(self)
         if '_nrnobj' not in kwds:
             raise TypeError("Segment instances should only be accessed from Sections.")
         self.__nrnobj = kwds['_nrnobj']
-        self._section = weakref.ref(kwds['section'])
         self._mechs = {}
+        self._section = weakref.ref(kwds['section'])
+        NeuronObject.__init__(self)
         self._update_mechs()
 
     @property
@@ -51,8 +52,11 @@ class Segment(NeuronObject):
     @v.setter
     def v(self, v):
         self.check_destroyed()
+        self._check_args(v=float)
+        v = float(v)
         self.__nrnobj.v = v
 
+    @property
     def area(self):
         """Return the surface area of the membrane for this segment.
         """
@@ -67,21 +71,28 @@ class Segment(NeuronObject):
         return FloatVar(self, 'diam', self.__nrnobj.diam)
 
     @diam.setter
-    def diam(self, d):
+    def diam(self, diam):
         self.check_destroyed()
-        self.__nrnobj.diam = d
+        self._check_args(diam=float)
+        diam = float(diam)
+        self._check_bounds(diam='> 0')
+        self.__nrnobj.diam = diam
 
     @property
     def ri(self):
-        """Specific resistivity of the membrane for this segment in Ohm/cm^2.
+        """Axial resistance from the center of the segment to either end.
+        
+        Computed as::
+        
+            .01 * sec.Ra * (sec.L / (2*sec.nseg)) / (pi * (seg.diam / 2)**2)
+            
+        See also
+        --------
+        
+        http://www.neuron.yale.edu/neuron/static/new_doc/modelspec/programmatic/topology/geometry.html#stylized-specification-of-geometry
         """
         self.check_destroyed()
-        return FloatVar(self, 'ri', self.__nrnobj.ri)
-
-    @ri.setter
-    def ri(self, ri):
-        self.check_destroyed()
-        self.__nrnobj.ri = ri
+        return self.__nrnobj.ri()
 
     @property
     def cm(self):
@@ -93,6 +104,8 @@ class Segment(NeuronObject):
     @cm.setter
     def cm(self, cm):
         self.check_destroyed()
+        self._check_args(cm=float)
+        cm = float(cm)
         self.__nrnobj.cm = cm
 
     @property

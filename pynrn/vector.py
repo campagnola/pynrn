@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 from neuron import h
 from .neuron_object import NeuronObject
@@ -15,7 +16,7 @@ class Vector(NeuronObject):
         if not isinstance(ref, FloatVar):
             raise TypeError("Cannot record from object of type %s" % 
                             type(ref))
-        self.__nrnobj.record(ref._get_ref)
+        self.__nrnobj.record(ref._get_ref())
             
     def _destroy(self):
         NeuronObject._destroy(self)

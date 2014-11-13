@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import weakref
 from neuron import h
 from .neuron_object import NeuronObject
@@ -51,7 +52,7 @@ class Section(NeuronObject):
 
     @property
     def L(self):
-        """The length of this section. 
+        """The length of this section in μm. 
         """
         self.check_destroyed()
         return self.__nrnobj.L
@@ -62,7 +63,11 @@ class Section(NeuronObject):
     
     @property
     def Ra(self):
-        """The axial resistivity of this section in S/cm. 
+        """The internal resistivity of this section in ohm-cm.
+        
+        The total resistance across the length of the section is given by
+        `Rtot = Ra * L / Area`, where Area is the cross-sectional area of 
+        the cylinder `pi * Diameter`.
         """
         self.check_destroyed()
         return self.__nrnobj.Ra

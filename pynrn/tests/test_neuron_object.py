@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import pytest
 from pynrn.neuron_object import NeuronObject
 import pynrn

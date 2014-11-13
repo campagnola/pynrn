@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import weakref
 import os, sys
 from neuron import h
