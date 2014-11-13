@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import weakref
+import collections
+import keyword
 from neuron import h
 from .neuron_object import NeuronObject
 from .reference import FloatVar
-import collections
-
 
 # Note: this list is extended at the end of the module.
 __all__ = ['Mechanism', 'DistributedMechanism', 'PointProcess', 
@@ -14,9 +14,6 @@ __all__ = ['Mechanism', 'DistributedMechanism', 'PointProcess',
 class Mechanism(NeuronObject):
     """Base class for NEURON mechanisms including distributed mechanisms, 
     point processes, and artificial cells.
-    
-    Mechanisms should not be instantiated directly; use Section.insert()
-    instead.
     """
     _mech_types = None
     
@@ -36,6 +33,8 @@ class Mechanism(NeuronObject):
             for vname,vsize in self._mech_desc[group].items():
                 if vname.endswith(suffix):
                     vname = vname[:-len(suffix)]
+                if keyword.iskeyword(vname):
+                    vname += "_"
                 self._variables.append(vname)
                 # Add name to __dict__ so that dir() lists available attributes.
                 self.__dict__[vname] = None
@@ -48,19 +47,25 @@ class Mechanism(NeuronObject):
         """If a mechanism variable is requested, then return a FloatVar reference
         to that value. Otherwise, just do a normal attribute lookup.
         """
-        if attr.startswith('_'):
-            return NeuronObject.__getattribute__(self, attr)
-        
-        if attr in self._variables:
-            self.check_destroyed()
-            return FloatVar(self, attr, getattr(self.__nrnobj, attr))
-        else:
-            return NeuronObject.__getattribute__(self, attr)
+        try:
+            if attr.startswith('_'):
+                return NeuronObject.__getattribute__(self, attr)
+            
+            if attr in self._variables:
+                self._check_attrs_usable()
+                return FloatVar(self, attr, getattr(self.__nrnobj, attr.rstrip('_')))
+            else:
+                return NeuronObject.__getattribute__(self, attr)
+        except AttributeError:
+            raise
+        except Exception as exc:
+            # Don't let python swallow exceptions here!
+            raise BaseException(exc.message)
     
     def __setattr__(self, attr, val):
         """Set the value of a mechanism variable.
         
-        Raise NameError if the name is not recognized. Names beginning with 
+        Raise AttributeError if the name is not recognized. Names beginning with 
         an underscore will be assigned as normal python attributes.
         """
         if attr.startswith('_'):
@@ -68,17 +73,17 @@ class Mechanism(NeuronObject):
         
         if hasattr(self, attr):
             if attr in self.__dict__.get('_variables', []):
-                self.check_destroyed()
-                setattr(self.__nrnobj, attr, val)
+                self._check_attrs_usable()
+                setattr(self.__nrnobj, attr.rstrip('_'), val)
             else:
                 return NeuronObject.__setattr__(self, attr, val)
         else:
-            raise NameError("Unknown attribute '%s' for mechanism '%s'." % 
-                            (attr, self._name))
+            raise AttributeError("Unknown attribute '%s' for mechanism '%s'." % 
+                                 (attr, self._name))
 
     def _get_ref(self, attr):
         self.check_destroyed()
-        return getattr(self.__nrnobj, '_ref_' + attr)
+        return getattr(self.__nrnobj, '_ref_' + attr.rstrip('_'))
 
     @property
     def variables(self):
@@ -198,6 +203,9 @@ class Mechanism(NeuronObject):
         self.__nrnobj = None
         NeuronObject._destroy(self)
 
+    def _check_attrs_usable(self):
+        self.check_destroyed()
+
 
 # Cache this data now because the results from MechanismStandard change
 # after some interactions with NEURON. See:
@@ -238,7 +246,17 @@ class DistributedMechanism(Mechanism):
 
 class PointProcess(Mechanism):
     """Point processes are mechanisms that act on a single Segment.
+
+    Parameters
+    ----------
+    segment : Segment
+        The segment to which this point process should be attached.
+    name : str
+        An optional name for this point process.
     
+    All extra keyword arguments are used to set properties of the point 
+    process.
+        
     Notes
     -----
     
@@ -250,12 +268,10 @@ class PointProcess(Mechanism):
     """
     all_point_processes = weakref.WeakValueDictionary()
     
-    def __init__(self, loc=None, sec=None, name=None):
-        from .section import Section
+    def __init__(self, segment=None, name=None, **kwds):
         from .segment import Segment
         
-        self._check_args(loc=(Segment, float, type(None)),
-                         sec=(Section, type(None)),
+        self._check_args(segment=(Segment, type(None)),
                          name=(str, type(None)))
         self._section = None
         
@@ -263,7 +279,7 @@ class PointProcess(Mechanism):
             mech_name = self.__class__.__name__
             pproc = getattr(h, mech_name)()
             self.__nrnobj = pproc  # we'll keep a separate ref from Mechanism
-            Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name)
+            Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name, **kwds)
             if name is None:
                 name = pproc.hname()
             self._name = name
@@ -272,18 +288,15 @@ class PointProcess(Mechanism):
             if 'pproc' in locals():
                 del pproc
         
-        if isinstance(loc, Segment):
-            if sec is not None:
-                raise TypeError("Argument sec must be None if loc is a Segment.")
-            self.attach(loc)
-        elif loc is not None:
-            # For backward compatibility with NEURON
-            loc = float(loc)
-            if not isinstance(sec, Section):
-                raise TypeError("Argument sec must be a Section instance when loc is float.")
-            self.attach(sec(loc))
-        elif sec is not None:
-            raise TypeError("Argument sec is invalid if loc is None.")
+        if segment is not None:
+            self.attach(segment)
+
+        for kwd, val in kwds.items():
+            try:
+                setattr(self, kwd, val)
+            except AttributeError:
+                self._destroy()  # make sure we disconnect!
+                raise TypeError('Invalid keyword argument "%s".' % kwd)
     
     @classmethod
     def _get(cls, pproc):
@@ -373,40 +386,24 @@ class PointProcess(Mechanism):
         # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
         return self.section(self.__nrnobj.get_loc())
 
-    #@property
-    #def location(self):
-        #"""The location of the point process (0 to 1) along the length of its 
-        #host section, or None if the point process is not attached to a 
-        #section.
-        
-        #Setting this property causes the point process to move to a new 
-        #location within the section it is currently attached to.
-        #"""
-        #if not self.attached:
-            #return None
-        #return self.__nrnobj.get_loc()
-
-    #@location.setter
-    #def location(self, loc):
-        #self.check_destroyed()
-        #try:
-            #loc = float(loc)
-        #except Exception:
-            #raise TypeError("location must be float (got %s)." % type(loc))
-        #self.attach(self.section(loc))
-
     def _destroy(self):
         if self.destroyed:
             return
         self.__nrnobj = None
         Mechanism._destroy(self)
 
+    def _check_attrs_usable(self):
+        Mechanism._check_attrs_usable(self)
+        if not self.attached:
+            raise RuntimeError("Cannot set point process attributes until it is"
+                               " attached.")
+
 
 class ArtificialCell(Mechanism):
     """Artificial cells are mechanisms that generate net events; they do not 
     interact directly with any cell membranes.
     """
-    def __init__(self, name=None):
+    def __init__(self, name=None, **kwds):
         try:
             mech_name = self.__class__.__name__
             cell = getattr(h, mech_name)()
@@ -417,6 +414,12 @@ class ArtificialCell(Mechanism):
         finally:
             if 'cell' in locals():
                 del cell
+
+        for kwd, val in kwds.items():
+            try:
+                setattr(self, kwd, val)
+            except AttributeError:
+                raise TypeError('Invalid keyword argument "%s".' % kwd)
 
     @property
     def name(self):

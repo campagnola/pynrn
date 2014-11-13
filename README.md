@@ -15,6 +15,8 @@ Features
 * Explicit and automatic creation / deletion of underlying NEURON objects.
 * Fully documented, unit-tested API.
 * No "ghost" attributes; dir(obj) is always accurate and comprehensive.
+* No attributes with keyword names (such cases are always suffixed with an 
+  underscore).
 * No "_ref_XX" needed to reference range variables.
 * All methods are strictly type-checked; no silent failures for incorrectly 
   used methods.
