@@ -202,6 +202,11 @@ class Mechanism(NeuronObject):
             return
         self.__nrnobj = None
         NeuronObject._destroy(self)
+        
+        # workaround for reference leak
+        # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
+        # Note: this replaces one leaked reference with another (more benign) one.
+        h.Vector().size()
 
     def _check_attrs_usable(self):
         self.check_destroyed()
@@ -275,9 +280,9 @@ class PointProcess(Mechanism):
                          name=(str, type(None)))
         self._section = None
         
+        mech_name = self.__class__.__name__
+        pproc = getattr(h, mech_name)()
         try:
-            mech_name = self.__class__.__name__
-            pproc = getattr(h, mech_name)()
             self.__nrnobj = pproc  # we'll keep a separate ref from Mechanism
             Mechanism.__init__(self, _nrnobj=pproc, mech_name=mech_name, **kwds)
             if name is None:
@@ -285,8 +290,7 @@ class PointProcess(Mechanism):
             self._name = name
             PointProcess.all_point_processes[pproc.hname()] = self
         finally:
-            if 'pproc' in locals():
-                del pproc
+            del pproc
         
         if segment is not None:
             self.attach(segment)
@@ -389,8 +393,10 @@ class PointProcess(Mechanism):
     def _destroy(self):
         if self.destroyed:
             return
+        n = len(h.List(self.__class__.__name__))
         self.__nrnobj = None
         Mechanism._destroy(self)
+        assert len(h.List(self.__class__.__name__)) == n-1
 
     def _check_attrs_usable(self):
         Mechanism._check_attrs_usable(self)

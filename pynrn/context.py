@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import weakref
-import os, sys
+import os, sys, gc
 from neuron import h
 from .base_object import BaseObject
 
@@ -78,7 +78,7 @@ class Context(BaseObject):
         self._finitialized = False
         self._destroyed = False
         Context._active = self
-        self.verify()
+        self._check_clean()
         
     def _add(self, obj):
         self._objects.add(obj)
@@ -252,6 +252,12 @@ class Context(BaseObject):
             if self._keep_vectors and isinstance(o, Vector):
                 continue
             o._destroy()
+            
+        # Workaround for reference leak:
+        #   https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
+        #   https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3296
+        h.Vector().size()
+            
         self._destroyed = True
     
     def verify(self):
@@ -298,6 +304,41 @@ class Context(BaseObject):
         
         # TODO: check for artificial cells, point processes, vectors, etc.
         
+    def _check_clean(self):
+        """Check that all objects have been cleared from NEURON kernel.
+        """
+        # Release objects held by an internal buffer
+        # See https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
+        neuron.h.Vector().size()    
+        
+        # Make sure nothing is hanging around in reference cycles 
+        gc.collect()
+        
+        remaining = []
+        
+        # No sections left
+        n = len(list(h.allsec()))
+        if n > 0:
+            remaining.append((n, 'Section'))
+            
+        # NetCon (and other object types?)
+        for objtyp in ['NetCon']:
+            n = len(h.List('NetCon'))
+            if n > 0:
+                remaining.append((n, 'NetCon'))
+        
+        # No point processes or artificial cells left
+        for name, typ in Mechanism.all_mechanism_types().items():
+            if typ['artificial_cell'] or typ['point_process']:
+                n = len(h.List(name))
+                if n > 0:
+                    remaining.append((n, name))
+            
+        if len(remaining) > 0:
+            msg = ("Cannot create new context--old objects have not been "
+                "cleared: %s" % ', '.join(['%d %s' % rem for rem in remaining]))
+            raise RuntimeError(msg)
+
         
     def __enter__(self):
         self._check_active()
@@ -312,3 +353,6 @@ class Context(BaseObject):
         
         # Otherwise, clean up when exiting the context. 
         self.finish()
+
+
+from .mechanism import Mechanism

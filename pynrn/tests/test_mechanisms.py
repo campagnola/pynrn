@@ -40,6 +40,12 @@ def test_pointprocess():
         ic.attach(sec(0.1))
         ic.segment
     
+    # PointProcess still appears here because we have a local ref:
+    assert len(pynrn.PointProcess.all_point_processes) == 1
+    # ..but it is already destroyed
+    with pytest.raises(BaseException):
+        pynrn.PointProcess.all_point_processes.values()[0].dur
+    
     with pynrn.Context():
         sec = pynrn.Section()
         sec.nseg = 2
@@ -61,6 +67,7 @@ def test_pointprocess():
         assert ic.segment.section is sec
         
         # check mangling of keyword names
+        assert not hasattr(ic, 'del')
         assert hasattr(ic, 'del_')
         
         assert sec.point_processes == [ic]
@@ -79,9 +86,6 @@ def test_pointprocess():
             
         # check the failed point process did not persist in the section
         assert len(sec2.point_processes) == 0
-
-
-
         
         sec2 = pynrn.Section()
         ic2 = pynrn.IClamp(sec2(0.2), dur=10, del_=20, amp=5)
@@ -122,4 +126,12 @@ def test_pointprocess():
         assert ic.segment is None
         assert not ic.attached
         
-        
+    # Another test for reference leak workaround
+    # https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
+    with pynrn.Context():
+        sec = pynrn.Section()
+        syn = pynrn.AlphaSynapse(sec(0.5))
+        syn.tau
+
+    with pynrn.Context():
+        pass
