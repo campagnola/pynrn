@@ -309,7 +309,7 @@ class Context(BaseObject):
         """
         # Release objects held by an internal buffer
         # See https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
-        neuron.h.Vector().size()    
+        h.Vector().size()    
         
         # Make sure nothing is hanging around in reference cycles 
         gc.collect()

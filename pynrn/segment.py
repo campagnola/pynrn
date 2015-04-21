@@ -126,6 +126,9 @@ class Segment(NeuronObject):
         finally:
             if 'pp' in locals():
                 del pp
+                # flush locals cache to remove hiden refs
+                # https://bugs.python.org/issue6116
+                locals()
         return all_pp
 
     def _get_ref(self, attr):
@@ -175,3 +178,6 @@ class Segment(NeuronObject):
             # make sure NEURON objects can't be trapped in exception frame
             if 'mech' in locals():
                 del mech
+                # flush locals cache to remove hiden refs
+                # https://bugs.python.org/issue6116
+                locals()

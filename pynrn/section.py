@@ -249,8 +249,8 @@ class Section(NeuronObject):
             raise NameError('Mecanism "%s" is not present in section.' % 
                             mech_name)
         
+        mt = h.MechanismType(0)
         try:
-            mt = h.MechanismType(0)
             sr = h.ref('')
             removed = False
             for i in range(int(mt.count())):
@@ -266,8 +266,7 @@ class Section(NeuronObject):
                 raise RuntimeError("Could not remove mechanism '%s' (this is "
                                    "a bug)." % mech_name)
         finally:
-            if 'mt' in locals():
-                del mt
+            del mt
         
         # Inform all segments that mechanism list has changed.
         for seg in self._segments.values():

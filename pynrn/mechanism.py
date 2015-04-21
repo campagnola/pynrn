@@ -410,16 +410,15 @@ class ArtificialCell(Mechanism):
     interact directly with any cell membranes.
     """
     def __init__(self, name=None, **kwds):
+        mech_name = self.__class__.__name__
+        cell = getattr(h, mech_name)()
         try:
-            mech_name = self.__class__.__name__
-            cell = getattr(h, mech_name)()
             Mechanism.__init__(self, _nrnobj=cell, mech_name=mech_name)
             if name is None:
                 name = cell.hname()
             self._name = name
         finally:
-            if 'cell' in locals():
-                del cell
+            del cell
 
         for kwd, val in kwds.items():
             try:
