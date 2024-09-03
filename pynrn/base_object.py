@@ -24,7 +24,6 @@ class BaseObject(object):
         # Danger: accessing locals creates a hidden cache of references
         # https://bugs.python.org/issue6116
         caller_locals = inspect.currentframe().f_back.f_locals
-        updates = {}
         for kwd, types in kwds.items():
             if not isinstance(types, tuple):
                 types = (types,)

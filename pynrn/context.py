@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 import weakref
-import os, sys, gc
+import os, gc
 from neuron import h
 from .base_object import BaseObject
 
@@ -235,6 +234,8 @@ class Context(BaseObject):
         self._destroy()
         if self.active:
             Context._active = None
+
+        gc.collect()
         #sys.exc_clear()
         
     @property
@@ -251,7 +252,8 @@ class Context(BaseObject):
         for o in list(self._objects):
             if self._keep_vectors and isinstance(o, Vector):
                 continue
-            o._destroy()
+            if o in self._objects:  # may have already been destroyed
+                o._destroy()
             
         # Workaround for reference leak:
         #   https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
@@ -286,7 +288,6 @@ class Context(BaseObject):
         try:
             sec = None
             checked = set()
-            extras = list()
             for sec in h.allsec():
                 wrapper = Section._get(sec, create=False)
                 if wrapper is None or wrapper not in self._objects:
@@ -348,7 +349,7 @@ class Context(BaseObject):
         # An error occurred AND an environment variable was given allowing pynrn
         # to leave the context unfinished if an error occurred (to allow the
         # context to be inspected by a debugger).
-        if args[0] is not None and os.getenv('PYNRN_DEBUG', '0') is not '0':
+        if args[0] is not None and os.getenv('PYNRN_DEBUG', '0') != '0':
             return
         
         # Otherwise, clean up when exiting the context. 

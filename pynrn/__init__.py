@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 """
 Modern, pythonic API for NEURON.
 
@@ -20,6 +19,7 @@ Todo:
 * Multiple simulation contexts
 
 """
+__version__ = "1.0"
 
 from .context import Context
 from .section import Section
