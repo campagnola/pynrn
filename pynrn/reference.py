@@ -29,7 +29,7 @@ class FloatVar(float):
     def source(self):
         return self._source()
 
-    def _get_ref(self):
+    def get_ref(self):
         """Reference to the source for this value.
         
         It is not necessary to call this method manually; any class that 
@@ -41,4 +41,4 @@ class FloatVar(float):
             raise RuntimeError('Cannot reference "%s" because source object '
                                '"%s" has already been deleted.' % 
                                (self._attr, self._source_name))
-        return self._source()._get_ref(self._attr)
+        return self._source().get_ref(self._attr)

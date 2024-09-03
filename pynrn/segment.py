@@ -16,10 +16,9 @@ class Segment(NeuronObject):
     def __init__(self, **kwds):
         if '_nrnobj' not in kwds:
             raise TypeError("Segment instances should only be accessed from Sections.")
-        self.__nrnobj = kwds['_nrnobj']
         self._mechs = {}
         self._section = weakref.ref(kwds['section'])
-        NeuronObject.__init__(self)
+        NeuronObject.__init__(self, kwds['_nrnobj'])
         self._update_mechs()
 
     @property
@@ -40,35 +39,35 @@ class Segment(NeuronObject):
         host section.
         """
         self.check_destroyed()
-        return self.__nrnobj.x
+        return self.nrnobj.x
 
     @property
     def v(self):
         """The membrane voltage of this segment in mV.
         """
         self.check_destroyed()
-        return FloatVar(self, 'v', self.__nrnobj.v)
+        return FloatVar(self, 'v', self.nrnobj.v)
 
     @v.setter
     def v(self, v):
         self.check_destroyed()
         self._check_args(v=float)
         v = float(v)
-        self.__nrnobj.v = v
+        self.nrnobj.v = v
 
     @property
     def area(self):
         """Return the surface area of the membrane for this segment.
         """
         self.check_destroyed()
-        return self.__nrnobj.area()
+        return self.nrnobj.area()
 
     @property
     def diam(self):
         """Diameter of this segment in um.
         """
         self.check_destroyed()
-        return FloatVar(self, 'diam', self.__nrnobj.diam)
+        return FloatVar(self, 'diam', self.nrnobj.diam)
 
     @diam.setter
     def diam(self, diam):
@@ -76,7 +75,7 @@ class Segment(NeuronObject):
         self._check_args(diam=float)
         diam = float(diam)
         self._check_bounds(diam='> 0')
-        self.__nrnobj.diam = diam
+        self.nrnobj.diam = diam
 
     @property
     def ri(self):
@@ -92,21 +91,21 @@ class Segment(NeuronObject):
         http://www.neuron.yale.edu/neuron/static/new_doc/modelspec/programmatic/topology/geometry.html#stylized-specification-of-geometry
         """
         self.check_destroyed()
-        return self.__nrnobj.ri()
+        return self.nrnobj.ri()
 
     @property
     def cm(self):
         """Specific capacitance of this segment in uF/cm^2.
         """
         self.check_destroyed()
-        return FloatVar(self, 'cm', self.__nrnobj.cm)
+        return FloatVar(self, 'cm', self.nrnobj.cm)
 
     @cm.setter
     def cm(self, cm):
         self.check_destroyed()
         self._check_args(cm=float)
         cm = float(cm)
-        self.__nrnobj.cm = cm
+        self.nrnobj.cm = cm
 
     @property
     def mechanisms(self):
@@ -121,7 +120,7 @@ class Segment(NeuronObject):
         """
         all_pp = []
         try:
-            for pp in self.__nrnobj.point_processes():
+            for pp in self.nrnobj.point_processes():
                 all_pp.append(PointProcess._get(pp))
         finally:
             if 'pp' in locals():
@@ -131,20 +130,20 @@ class Segment(NeuronObject):
                 locals()
         return all_pp
 
-    def _get_ref(self, attr):
+    def get_ref(self, attr):
         """Return a reference to a variable on the underlying NEURON object
         """
         # Note: variable references do not increase the refcount of their 
         # host Section.
         self.check_destroyed()
-        return getattr(self.__nrnobj, '_ref_' + attr)
+        return getattr(self.nrnobj, '_ref_' + attr)
 
     def _destroy(self):
         if self.destroyed:
             return
-        self.__nrnobj = None
         for mech in self._mechs.values():
-            mech._destroy()
+            if not mech.destroyed:  # may have already been destroyed by context
+                mech._destroy()
         self._mechs = {}
         NeuronObject._destroy(self)
 
@@ -155,7 +154,7 @@ class Segment(NeuronObject):
         try:
             # Add newly-added mechanisms
             allnames = []
-            for mech in self.__nrnobj:
+            for mech in self.nrnobj:
                 name = mech.name()
                 allnames.append(name)
                 if name in self._mechs:

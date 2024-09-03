@@ -23,7 +23,7 @@ def test_verify():
         ctx.verify()
         
         # very bad!
-        del s1._Section__nrnobj
+        del s1.nrnobj
         del s1._Section__secref
         with pytest.raises(RuntimeError):
             ctx.verify()

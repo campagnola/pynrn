@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import weakref
+import weakref, gc
+from neuron import h
 from .context import Context
 from .base_object import BaseObject
 
@@ -12,7 +13,7 @@ class NeuronObject(BaseObject):
       (must stay private or else we cannot ensure _destroy will work)
     * methods for creating / destroying underlying object
     """
-    def __init__(self):
+    def __init__(self, nrn_object):
         # Add this object to the currently active context
         ctx = Context.active_context()
         if ctx is None:
@@ -20,6 +21,11 @@ class NeuronObject(BaseObject):
         self.__context = ctx
         ctx._add(self)
         self.__destroyed = False
+        self.__nrnobj = nrn_object
+
+    @property
+    def nrnobj(self):
+        return self.__nrnobj
 
     @property
     def context(self):
@@ -46,8 +52,11 @@ class NeuronObject(BaseObject):
         context; subclasses must extend this method to remove references to
         NEURON objects.
         """
+        self.__nrnobj = None
+        # h.Vector().size()
         if self.__destroyed:
+            print(f"Attempt to destroy NEURON object {self} twice")
             return
-        self.__context._remove(self)
         self.__destroyed = True
-
+        self.__context._remove(self)
+            

@@ -20,7 +20,7 @@ def test_segment():
         assert isinstance(seg.v, FloatVar)
         assert seg.v.source is seg
         assert seg.v.name == 'v'
-        assert seg.v == seg._Segment__nrnobj.v
+        assert seg.v == seg.nrnobj.v
         assert isinstance(seg.hh, pynrn.DistributedMechanism)
         assert isinstance(seg.hh.gkbar, FloatVar)
         assert seg.hh.gkbar.source is seg.hh
@@ -29,14 +29,14 @@ def test_segment():
         # test property assignments work as expected
         seg.v = 0
         assert seg.v == 0
-        assert seg._Segment__nrnobj.v == 0
+        assert seg.nrnobj.v == 0
         
         seg.hh.gkbar = 2
         assert seg.hh.gkbar == 2
         
         seg.diam = 10
         assert seg.diam == 10
-        assert seg._Segment__nrnobj.diam == 10
+        assert seg.nrnobj.diam == 10
         assert np.allclose(seg.area, sec.L * np.pi * seg.diam)
         
         seg.diam = 100
@@ -44,7 +44,7 @@ def test_segment():
         
         seg.cm = 100
         assert seg.cm == 100
-        assert seg._Segment__nrnobj.cm == 100
+        assert seg.nrnobj.cm == 100
         
         # test ri works
         cross_area = 3.14159 * (seg.diam / 2)**2

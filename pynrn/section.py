@@ -20,26 +20,26 @@ class Section(NeuronObject):
         # sec(0.5) at every access.
         self._segments = {}
         
-        NeuronObject.__init__(self)
-        
         # Create underlying Section and SectionRef objects
         if '_nrnobj' in kwds:
-            self.__nrnobj = kwds['_nrnobj']
+            nrnobj = kwds['_nrnobj']
         else:
-            self.__nrnobj = h.Section(name="pynrn_sec_%d" % Section._sec_index)
+            nrnobj = h.Section(name="pynrn_sec_%d" % Section._sec_index)
             Section._sec_index += 1
-        self.__secref = h.SectionRef(sec=self.__nrnobj)
 
+        NeuronObject.__init__(self, nrnobj)
+        self.__secref = h.SectionRef(sec=self.nrnobj)
+        
         # In order to ensure that we can uniquely map each NEURON section to
         # a single Section instance, they must have unique names. Therefore,
         # we do not allow the user to set the name of the NEURON section.
         if name is None:
-            name = self.__nrnobj.name()
+            name = self.nrnobj.name()
         self._name = name
         
         # Register the section's name to ensure we won't create a new wrapper
         # for the same section.
-        secname = self.__nrnobj.name()
+        secname = self.nrnobj.name()
         assert secname not in Section.allsec
         Section.allsec[secname] = self
 
@@ -55,11 +55,11 @@ class Section(NeuronObject):
         """The length of this section in μm. 
         """
         self.check_destroyed()
-        return self.__nrnobj.L
+        return self.nrnobj.L
     
     @L.setter
     def L(self, l):
-        self.__nrnobj.L = l
+        self.nrnobj.L = l
     
     @property
     def Ra(self):
@@ -70,11 +70,11 @@ class Section(NeuronObject):
         the cylinder `pi * Diameter`.
         """
         self.check_destroyed()
-        return self.__nrnobj.Ra
+        return self.nrnobj.Ra
     
     @Ra.setter
     def Ra(self, ra):
-        self.__nrnobj.Ra = ra
+        self.nrnobj.Ra = ra
 
     @property
     def nseg(self):
@@ -85,13 +85,13 @@ class Section(NeuronObject):
         any segments.
         """
         self.check_destroyed()
-        return self.__nrnobj.nseg
+        return self.nrnobj.nseg
     
     @nseg.setter
     def nseg(self, n):
         self.check_destroyed()
         #self._forget_segments()  # don't think this is necessary.
-        self.__nrnobj.nseg = n
+        self.nrnobj.nseg = n
         
     @property
     def parent(self):
@@ -213,7 +213,7 @@ class Section(NeuronObject):
         if not (0 <= parentx <= 1):
             raise ValueError("parentx must be float between 0 and 1 inclusive")
         
-        self.__nrnobj.connect(parent.__nrnobj, parentx, childend)
+        self.nrnobj.connect(parent.nrnobj, parentx, childend)
         
     def disconnect(self):
         """Disconnect this section from its parent. 
@@ -223,7 +223,7 @@ class Section(NeuronObject):
         if self.parent is None:
             raise RuntimeError("Section is not connected to a parent.")
         
-        h.disconnect(sec=self.__nrnobj)
+        h.disconnect(sec=self.nrnobj)
         
     def insert(self, mech_name):
         """Insert a new distributed mechanism into this Section.
@@ -237,7 +237,7 @@ class Section(NeuronObject):
         Mechanism.all_mechanism_types()
         """
         self.check_destroyed()
-        self.__nrnobj.insert(mech_name)
+        self.nrnobj.insert(mech_name)
         # Inform all segments that mechanism list has changed.
         for seg in self._segments.values():
             seg._update_mechs()
@@ -257,7 +257,7 @@ class Section(NeuronObject):
                 mt.select(i)
                 mt.selected(sr)
                 if sr[0] == mech_name:
-                    self.__nrnobj.push()
+                    self.nrnobj.push()
                     mt.remove()
                     h.pop_section()
                     removed = True
@@ -297,7 +297,7 @@ class Section(NeuronObject):
         self._check_bounds(x=(">= 0", "<= 1"))
         
         if x not in self._segments:
-            seg = Segment(_nrnobj=self.__nrnobj(x), section=self)
+            seg = Segment(_nrnobj=self.nrnobj(x), section=self)
             self._segments[x] = seg
         return self._segments[x]
     
@@ -339,7 +339,6 @@ class Section(NeuronObject):
         self._forget_segments()  # Segments keep their Section alive, even if
                                  # they no longer belong to the section!
         self.__secref = None
-        self.__nrnobj = None
         
         NeuronObject._destroy(self)
     
@@ -362,4 +361,4 @@ class Section(NeuronObject):
     def _push(self):
         """Push the NEURON object onto the section stack.
         """
-        self.__nrnobj.push()
+        self.nrnobj.push()

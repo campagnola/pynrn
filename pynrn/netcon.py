@@ -49,7 +49,6 @@ class NetCon(NeuronObject):
     """
     def __init__(self, source, target, threshold=10, delay=1, weight=0):
         from .mechanism import PointProcess, ArtificialCell
-        NeuronObject.__init__(self)
 
         self._check_args(source=FloatVar,
                          target=(PointProcess, ArtificialCell, type(None)),
@@ -71,12 +70,13 @@ class NetCon(NeuronObject):
         source.source.section._push()
         if target is None:
             self._target = None
-            self.__nrnobj = h.NetCon(source._get_ref(), h.ref(None), 
+            nrnobj = h.NetCon(source.get_ref(), h.ref(None), 
                                      threshold, delay, weight)
         else:
             self._target = weakref.ref(target)
-            self.__nrnobj = h.NetCon(source._get_ref(), target._Mechanism__nrnobj, 
+            nrnobj = h.NetCon(source.get_ref(), target.nrnobj, 
                                      threshold, delay, weight)
+        NeuronObject.__init__(self, nrnobj)
         h.pop_section()
         
         self._weight = NetConWeight(self)
@@ -96,10 +96,10 @@ class NetCon(NeuronObject):
                             "before connecting NetCon.")
         if target is None:
             self._target = None
-            self.__nrnobj.setpost(h.ref(None))
+            self.nrnobj.setpost(h.ref(None))
         else:
             self._target = weakref.ref(target)
-            self.__nrnobj.setpost(target._Mechanism__nrnobj)
+            self.nrnobj.setpost(target.nrnobj)
         
         if self._weight is not None:
             self._weight._update_count()
@@ -111,13 +111,13 @@ class NetCon(NeuronObject):
 
     @property
     def delay(self):
-        return self.__nrnobj.delay
+        return self.nrnobj.delay
     
     @delay.setter
     def delay(self, delay):
         self._check_args(delay=float)
         delay = float(delay)
-        self.__nrnobj.delay = delay
+        self.nrnobj.delay = delay
 
     @property
     def weight(self):
@@ -129,26 +129,26 @@ class NetCon(NeuronObject):
 
     @property
     def threshold(self):
-        return self.__nrnobj.threshold
+        return self.nrnobj.threshold
     
     @threshold.setter
     def threshold(self, threshold):
         self._check_args(threshold=float)
         threshold = float(threshold)
-        self.__nrnobj.threshold = threshold
+        self.nrnobj.threshold = threshold
 
     @property
     def valid(self):
-        return self.__nrnobj.valid() == 1.0
+        return self.nrnobj.valid() == 1.0
     
     @property
     def active(self):
-        return self.__nrnobj.active() == 1.0
+        return self.nrnobj.active() == 1.0
     
     @active.setter
     def active(self, act):
         self._check_args(act=bool)
-        self.__nrnobj.active(act)
+        self.nrnobj.active(act)
         
     def event(self, tdeliver, flag=None):
         """Deliver an event at time *tdeliver*.
@@ -157,10 +157,15 @@ class NetCon(NeuronObject):
         tdeliver = float(tdeliver)
         
         if flag is None:
-            self.__nrnobj.event(tdeliver)
+            self.nrnobj.event(tdeliver)
         else:
-            self.__nrnobj.event(tdeliver, flag)
+            self.nrnobj.event(tdeliver, flag)
     
+    def _destroy(self):
+        n_nc = len(h.List('NetCon'))
+        NeuronObject._destroy(self)
+        assert len(h.List('NetCon')) < n_nc, f"Failed to destroy {self}"
+
     
 class NetConWeight(object):
     def __init__(self, netcon):
@@ -175,7 +180,7 @@ class NetConWeight(object):
         if item < -len(self) or item >= len(self):
             raise IndexError("Index %d out of bounds for weight vector of length %d." %
                              (item, len(self)))
-        return self._nc()._NetCon__nrnobj.weight[item]
+        return self._nc().nrnobj.weight[item]
     
     def __getslice__(self, slice):
         inds = slice.indices(len(self))
@@ -190,7 +195,7 @@ class NetConWeight(object):
         if item < -len(self) or item >= len(self):
             raise IndexError("Index %d out of bounds for weight vector of length %d." %
                              (item, len(self)))
-        self._nc()._NetCon__nrnobj.weight[item] = val
+        self._nc().nrnobj.weight[item] = val
         
     def __setslice__(self, slice, vals):
         try:
@@ -217,4 +222,4 @@ class NetConWeight(object):
         return repr(list(self))
 
     def _update_count(self):
-        self._len = int(self._nc()._NetCon__nrnobj.wcnt())
+        self._len = int(self._nc().nrnobj.wcnt())
