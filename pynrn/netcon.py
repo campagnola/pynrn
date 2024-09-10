@@ -14,7 +14,7 @@ class NetCon(NeuronObject):
     
     Parameters
     ----------
-    source : FloatRef
+    source : FloatRef | event source
         Source variable used to determine when network events are generated.
         When the source crosses *threshold* in the positive direction, an event
         is delivered to *target*. Usually *source* is a reference to a segment
@@ -50,7 +50,7 @@ class NetCon(NeuronObject):
     def __init__(self, source, target, threshold=10, delay=1, weight=0):
         from .mechanism import PointProcess, ArtificialCell
 
-        self._check_args(source=FloatVar,
+        self._check_args(source=(FloatVar, NeuronObject),
                          target=(PointProcess, ArtificialCell, type(None)),
                          threshold=float,
                          delay=float,
@@ -63,21 +63,23 @@ class NetCon(NeuronObject):
             raise TypeError("PointProcess target must be attached to a Section "
                             "before connecting NetCon.")
         
-        self._source_obj = source.source
-        self._source_attr = source.name
-            
-        # source section must be CAS
-        source.source.section._push()
-        if target is None:
-            self._target = None
-            nrnobj = h.NetCon(source.get_ref(), h.ref(None), 
-                                     threshold, delay, weight)
+        self._source_obj = source
+
+        if isinstance(source, FloatVar):
+            # source section must be CAS
+            source.source.section._push()
+            if target is None:
+                self._target = None
+                nrnobj = h.NetCon(source.get_ref(), h.ref(None), threshold, delay, weight)
+            else:
+                self._target = weakref.ref(target)
+                nrnobj = h.NetCon(source.get_ref(), target.nrnobj, threshold, delay, weight)
+            NeuronObject.__init__(self, nrnobj)
+            h.pop_section()
         else:
-            self._target = weakref.ref(target)
-            nrnobj = h.NetCon(source.get_ref(), target.nrnobj, 
-                                     threshold, delay, weight)
-        NeuronObject.__init__(self, nrnobj)
-        h.pop_section()
+            nrnobj = h.NetCon(source.nrnobj, target.nrnobj, threshold, delay, weight)
+            NeuronObject.__init__(self, nrnobj)
+
         
         self._weight = NetConWeight(self)
 
@@ -107,7 +109,7 @@ class NetCon(NeuronObject):
 
     @property
     def source(self):
-        return getattr(self._source_obj, self._source_attr)
+        return self._source_obj
 
     @property
     def delay(self):

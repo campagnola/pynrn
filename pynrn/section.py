@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import weakref
 from neuron import h
+import neuron.hoc
 from .neuron_object import NeuronObject
 from .segment import Segment
 from .mechanism import Mechanism
@@ -19,7 +20,7 @@ class Section(NeuronObject):
         # Note: don't use weak references here! We don't want to recreate
         # sec(0.5) at every access.
         self._segments = {}
-        
+
         # Create underlying Section and SectionRef objects
         if '_nrnobj' in kwds:
             nrnobj = kwds['_nrnobj']
@@ -338,8 +339,12 @@ class Section(NeuronObject):
             return
         self._forget_segments()  # Segments keep their Section alive, even if
                                  # they no longer belong to the section!
+        name = self.nrnobj.name()
+        Section.allsec[name].remove(self)
         self.__secref = None
-        
+        if not self.nrnobj.is_pysec():
+            h.execute('access %s' % name)
+            h.execute('delete_section()')
         NeuronObject._destroy(self)
     
     @classmethod

@@ -78,3 +78,29 @@ class BaseObject(object):
                     raise ValueError("Argument %s must be %s (got %s)." % 
                                      (kwd, cond, caller_locals[kwd]))
 
+    def _args_to_neuron(self, *args, **kwds):
+        args2 = []
+        kwds2 = {}
+        for arg in args:
+            if hasattr(arg, '_as_neuron_arg'):
+                args2.append(arg._as_neuron_arg())
+            else:
+                args2.append(arg)
+
+        for kwd, val in kwds.items():
+            if hasattr(val, '_as_neuron_arg'):
+                kwds2[kwd] = val._as_neuron_arg()
+            else:
+                kwds2[kwd] = val
+
+        return args2, kwds2
+    
+    def _func_args_to_neuron(self, func):
+        def wrap_args_to_neuron(*args, **kwds):
+            args2, kwds2 = self._args_to_neuron(*args, **kwds)
+            return func(*args2, **kwds2)
+        if hasattr(func, '__name__'):
+            wrap_args_to_neuron.__name__ = func.__name__ + "_args_to_neuron"
+        if hasattr(func, '__doc__'):
+            wrap_args_to_neuron.__doc__ = func.__doc__
+        return wrap_args_to_neuron

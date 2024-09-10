@@ -60,10 +60,15 @@ class Mechanism(NeuronObject):
         try:
             if attr.startswith('_'):
                 return NeuronObject.__getattribute__(self, attr)
-            
+            nrnobj = NeuronObject.__getattribute__(self, 'nrnobj')
             if attr in self._variables:
                 self._check_attrs_usable()
                 return FloatVar(self, attr, getattr(self.nrnobj, attr.rstrip('_')))
+            elif hasattr(nrnobj, attr):
+                # mainly to allow forwarding to mechanism methods
+                decorator = NeuronObject.__getattribute__(self, '_func_args_to_neuron')
+                decorated = decorator(getattr(nrnobj, attr))
+                return decorated
             else:
                 return NeuronObject.__getattribute__(self, attr)
         except AttributeError:
@@ -170,42 +175,73 @@ class Mechanism(NeuronObject):
         http://www.neuron.yale.edu/neuron/static/docs/help/neuron/nmodl/nmodl.html
         """
         if Mechanism._mech_types is None:
-            Mechanism._mech_types = collections.OrderedDict()
-            mname = h.ref('')
-            # Iterate over two mechanism types (distributed, point/artificial)
-            for i in [0, 1]:
-                mt = h.MechanismType(i)
-                nmech = int(mt.count())
-                # Iterate over all mechanisms of this type
-                for j in range(nmech):
-                    mt.select(j)
-                    mt.selected(mname)
-                    
-                    # General mechanism properties
-                    name = mname[0]  # convert hoc string ptr to python str
-                    
-                    desc = {
-                        'point_process': bool(i),
-                        'netcon_target': bool(mt.is_netcon_target(j)),
-                        'has_netevent': bool(mt.has_net_event(j)),
-                        'artificial_cell': bool(mt.is_artificial(j)),
-                        'internal_type': int(mt.internal_type()),
-                    }
-                    
-                    # Collect information about 4 different types of variables
-                    for k,ptype in [(-1, 'globals'), (1, 'parameters'), 
-                                    (2, 'assigned'), (3, 'state')]:
-                        desc[ptype] = {} # collections.OrderedDict()
-                        ms = h.MechanismStandard(name, k)
-                        for l in range(int(ms.count())):
-                            psize = ms.name(mname, l)
-                            pname = mname[0]  # parameter name
-                            desc[ptype][pname] = int(psize)
-                    
-                    # Assemble everything in one place
-                    Mechanism._mech_types[name] = desc
-                
+            Mechanism.reload_mechanism_types()                
         return Mechanism._mech_types
+
+    @staticmethod
+    def reload_mechanism_types():
+        """Load metadata about all available mechanism types from NEURON, then create
+        subclasses for each mechanism type.
+        """
+        if Mechanism._mech_types is None:
+            Mechanism._mech_types = collections.OrderedDict()
+        mname = h.ref('')
+        # Iterate over two mechanism types (distributed, point/artificial)
+        for i in [0, 1]:
+            mt = h.MechanismType(i)
+            nmech = int(mt.count())
+            # Iterate over all mechanisms of this type
+            for j in range(nmech):
+                mt.select(j)
+                mt.selected(mname)
+                
+                # General mechanism properties
+                name = mname[0]  # convert hoc string ptr to python str
+                if name in Mechanism._mech_types:
+                    continue
+
+                desc = {
+                    'point_process': bool(i),
+                    'netcon_target': bool(mt.is_netcon_target(j)),
+                    'has_netevent': bool(mt.has_net_event(j)),
+                    'artificial_cell': bool(mt.is_artificial(j)),
+                    'internal_type': int(mt.internal_type()),
+                }
+                
+                # Collect information about 4 different types of variables
+                for k,ptype in [(-1, 'globals'), (1, 'parameters'), 
+                                (2, 'assigned'), (3, 'state')]:
+                    desc[ptype] = {} # collections.OrderedDict()
+                    ms = h.MechanismStandard(name, k)
+                    for l in range(int(ms.count())):
+                        psize = ms.name(mname, l)
+                        pname = mname[0]  # parameter name
+                        desc[ptype][pname] = int(psize)
+                
+                # Assemble everything in one place
+                Mechanism._mech_types[name] = desc
+        Mechanism.create_mechanism_classes()
+
+    @staticmethod
+    def create_mechanism_classes():
+        # make new subclasses for all mechanism types
+        all_mechs = Mechanism.all_mechanism_types()
+        for name,mech in all_mechs.items():
+            if not mech['point_process']:
+                name = 'DistributedMechanism_' + name
+                superclass = DistributedMechanism
+            else:
+                if mech['artificial_cell']:
+                    superclass = ArtificialCell
+                else:
+                    superclass = PointProcess
+
+            if name in globals():
+                continue
+
+            m_class = type(name, (superclass,), {})
+            __all__.append(m_class.__name__)
+            globals()[m_class.__name__] = m_class
 
     def _destroy(self):
         NeuronObject._destroy(self)
@@ -218,11 +254,6 @@ class Mechanism(NeuronObject):
     def _check_attrs_usable(self):
         self.check_destroyed()
 
-
-# Cache this data now because the results from MechanismStandard change
-# after some interactions with NEURON. See:
-# http://www.neuron.yale.edu/phpBB/viewtopic.php?f=8&t=3219
-Mechanism.all_mechanism_types()
 
 
 class DistributedMechanism(Mechanism):
@@ -423,17 +454,10 @@ class ArtificialCell(Mechanism):
         """The name given to this artificial cell at initialization time.
         """
         return self._name
-        
 
-# make new subclasses for all mechanism types
-all_mechs = Mechanism.all_mechanism_types()
-for name,mech in all_mechs.items():
-    if not mech['point_process']:
-        m_class = type('DistributedMechanism_' + name, (DistributedMechanism,), {})
-    else:
-        if mech['artificial_cell']:
-            m_class = type(name, (ArtificialCell,), {})
-        else:
-            m_class = type(name, (PointProcess,), {})
-        __all__.append(m_class.__name__)
-    globals()[m_class.__name__] = m_class
+
+# Cache this data now because the results from MechanismStandard change
+# after some interactions with NEURON. See:
+# http://www.neuron.yale.edu/phpBB/viewtopic.php?f=8&t=3219
+Mechanism.reload_mechanism_types()
+

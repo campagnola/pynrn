@@ -57,12 +57,16 @@ class Context(BaseObject):
     _active = None
 
     @classmethod
-    def active_context(cls):
+    def active_context(cls, create=False):
         """Return the currently active simulation context.
+
+        If *create* is True, then a new context will be created if none exists.
         """
+        if cls._active is None and create:
+            cls._active = cls()
         return cls._active
     
-    def __init__(self, keep_vectors=True):
+    def __init__(self, keep_vectors=True, init_obj=None):
         if Context._active is not None:
             raise RuntimeError("There is already an active simulation context."
                                " Call Context.active.finish() before starting"
@@ -77,7 +81,7 @@ class Context(BaseObject):
         self._finitialized = False
         self._destroyed = False
         Context._active = self
-        self._check_clean()
+        self._check_clean(ignore=init_obj)
         
     def _add(self, obj):
         self._objects.add(obj)
@@ -305,8 +309,10 @@ class Context(BaseObject):
         
         # TODO: check for artificial cells, point processes, vectors, etc.
         
-    def _check_clean(self):
+    def _check_clean(self, ignore=None):
         """Check that all objects have been cleared from NEURON kernel.
+
+        *ignore* may be an object or list of objects that should not be checked.
         """
         # Release objects held by an internal buffer
         # See https://www.neuron.yale.edu/phpBB/viewtopic.php?f=2&t=3221
@@ -316,31 +322,33 @@ class Context(BaseObject):
         gc.collect()
         
         remaining = []
-        
-        # No sections left
-        n = len(list(h.allsec()))
+        if not isinstance(ignore, (list, tuple)):
+            ignore = [ignore]
+        ignore = set(ignore)
+
+        # Check for remaining sections
+        allsec = h.allsec()
+        n = len(list((set(allsec) if allsec is not None else set()) - ignore))
         if n > 0:
             remaining.append((n, 'Section'))
-            
-        # NetCon (and other object types?)
-        for objtyp in ['NetCon']:
-            n = len(h.List('NetCon'))
-            if n > 0:
-                remaining.append((n, 'NetCon'))
-        
-        # No point processes or artificial cells left
+
+        # Collect list of all other object types we will check for
+        obj_types = ['NetCon']
         for name, typ in Mechanism.all_mechanism_types().items():
             if typ['artificial_cell'] or typ['point_process']:
-                n = len(h.List(name))
-                if n > 0:
-                    remaining.append((n, name))
+                obj_types.append(name)
+
+        # Check for remaining objects of each type
+        for objtyp in obj_types:
+            n = len(set(h.List(objtyp)) - ignore)
+            if n > 0:
+                remaining.append((n, objtyp))
             
         if len(remaining) > 0:
             msg = ("Cannot create new context--old objects have not been "
                 "cleared: %s" % ', '.join(['%d %s' % rem for rem in remaining]))
             raise RuntimeError(msg)
 
-        
     def __enter__(self):
         self._check_active()
         return self

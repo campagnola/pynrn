@@ -22,14 +22,7 @@ class Vector(NeuronObject):
 
     def play(self, *args):
         self.check_destroyed()
-        args2 = []
-        for arg in args:
-            if isinstance(arg, Vector):
-                args2.append(arg.nrnobj)
-            elif isinstance(arg, FloatVar):
-                args2.append(arg.get_ref())
-            else:
-                args2.append(arg)
+        args2, _ = self._args_to_neuron(*args)
         self.nrnobj.play(*args2)
 
     def play_remove(self):

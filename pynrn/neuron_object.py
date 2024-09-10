@@ -17,7 +17,7 @@ class NeuronObject(BaseObject):
         # Add this object to the currently active context
         ctx = Context.active_context()
         if ctx is None:
-            ctx = Context()
+            ctx = Context(init_obj=self)
         self.__context = ctx
         ctx._add(self)
         self.__destroyed = False
@@ -26,6 +26,13 @@ class NeuronObject(BaseObject):
     @property
     def nrnobj(self):
         return self.__nrnobj
+    
+    def __getattr__(self, name):
+        """Forward attribute access to the underlying NEURON object.
+        """
+        if self.__destroyed:
+            raise RuntimeError("Underlying NEURON object has been destroyed.")
+        return getattr(self.__nrnobj, name)
 
     @property
     def context(self):
@@ -60,3 +67,8 @@ class NeuronObject(BaseObject):
         self.__destroyed = True
         self.__context._remove(self)
             
+    def _as_neuron_arg(self):
+        """Return the value to use when passing this object as an argument to
+        a NEURON function. (in this case, the underlying NEURON object)
+        """
+        return self.__nrnobj

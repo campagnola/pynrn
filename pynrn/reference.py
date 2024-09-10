@@ -42,3 +42,12 @@ class FloatVar(float):
                                '"%s" has already been deleted.' % 
                                (self._attr, self._source_name))
         return self._source().get_ref(self._attr)
+
+    def _as_neuron_arg(self):
+        """Return the value to use when passing this object as an argument to
+        a NEURON function. (in this case, a reference to the source variable)
+        """
+        return self.get_ref()
+
+    def __repr__(self):
+        return f'FloatVar({self._source_name}.{self._attr}={float(self)})'
