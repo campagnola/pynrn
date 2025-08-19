@@ -340,7 +340,7 @@ class Section(NeuronObject):
         self._forget_segments()  # Segments keep their Section alive, even if
                                  # they no longer belong to the section!
         name = self.nrnobj.name()
-        Section.allsec[name].remove(self)
+        del Section.allsec[name]
         self.__secref = None
         if not self.nrnobj.is_pysec():
             h.execute('access %s' % name)

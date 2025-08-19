@@ -1,7 +1,9 @@
 import os, urllib.request, zipfile
 import allensdk.model.biophysical as allensdk_model_biophysical
-from allensdk.model.biophysical.runner import run, load_description
+from allensdk.model.biophysical.runner import load_description
 from allensdk.model.biophysical.utils import create_utils
+from allensdk.api.queries.biophysical_api import BiophysicalApi
+
 from neuron import h
 from .compile import compile_and_load_mechanisms
 from .section import Section
@@ -27,46 +29,61 @@ def load_allen_cell(model_id, model_cache_path=None):
 
     # Download the model
     model_path = os.path.join(model_cache_path, str(model_id))
-    if not os.path.exists(model_path):
-        try:
-            if not os.path.exists(model_cache_path):
-                os.mkdir(model_cache_path)
-            os.mkdir(model_path)
-            url = 'http://celltypes.brain-map.org/neuronal_model/download/%d' % model_id
-            print("Downloading model %d from %s" % (model_id, url))
-            zip_path = os.path.join(model_path, 'model.zip')
-            urllib.request.urlretrieve(url, zip_path)
-            with zipfile.ZipFile(zip_path) as zf:
-                zf.extractall(model_path)
-            os.remove(zip_path)
-        except Exception as e:
-            # remove the directory and all files inside
+
+    # Manual download and extraction of the model is no longer needed, but leaving it here for reference
+    # if not os.path.exists(model_path):
+    #     try:
+    #         if not os.path.exists(model_cache_path):
+    #             os.mkdir(model_cache_path)
+    #         os.mkdir(model_path)
+    #         url = 'http://celltypes.brain-map.org/neuronal_model/download/%d' % model_id
+    #         print("Downloading model %d from %s" % (model_id, url))
+    #         zip_path = os.path.join(model_path, 'model.zip')
+    #         urllib.request.urlretrieve(url, zip_path)
+    #         with zipfile.ZipFile(zip_path) as zf:
+    #             zf.extractall(model_path)
+    #         os.remove(zip_path)
+    #     except Exception as e:
+    #         # remove the directory and all files inside
+    #         import shutil
+    #         shutil.rmtree(model_path)
+    #         raise e
+
+    try:
+        if not os.path.exists(model_path):
+            bp = BiophysicalApi()
+            bp.cache_stimulus = False
+            bp.cache_data(model_id, working_directory=model_path)
+
+        # Compile the mechanisms
+        compile_and_load_mechanisms(os.path.join(model_path, 'modfiles'))
+
+        existing_sections = list(h.allsec())
+
+        # create a pynrn context if one does not exist yet (since we are about to create many sections)
+        Context.active_context(create=True)
+
+        # Load the model into NEURON
+        os.chdir(model_path)        
+        manifest_file = os.path.join(model_path, 'manifest.json')
+        desc = load_description({'manifest_file': manifest_file})
+        utils = create_utils(desc)
+        morphology_path = desc.manifest.get_path('MORPHOLOGY').encode('ascii', 'ignore')
+        morphology_path = morphology_path.decode("utf-8")
+        utils.generate_morphology(morphology_path)
+        utils.load_cell_parameters()
+
+        updated_sections = list(h.allsec())
+        newsec = {}
+        for sec in updated_sections:
+            if sec not in existing_sections:
+                newsec[sec.name()] = Section(_nrnobj=sec)
+    except Exception:
+        # If anything went wrong, remove the directory for this model
+        # so that it can be downloaded again next time
+        if os.path.exists(model_path):
             import shutil
             shutil.rmtree(model_path)
-            raise e
-        
-    # Compile the mechanisms
-    compile_and_load_mechanisms(os.path.join(model_path, 'modfiles'))
-
-    existing_sections = list(h.allsec())
-
-    # create a pynrn context if one does not exist yet (since we are about to create many sections)
-    Context.active_context(create=True)
-
-    # Load the model into NEURON
-    os.chdir(model_path)        
-    manifest_file = os.path.join(model_path, 'manifest.json')
-    desc = load_description({'manifest_file': manifest_file})
-    utils = create_utils(desc)
-    morphology_path = desc.manifest.get_path('MORPHOLOGY').encode('ascii', 'ignore')
-    morphology_path = morphology_path.decode("utf-8")
-    utils.generate_morphology(morphology_path)
-    utils.load_cell_parameters()
-
-    updated_sections = list(h.allsec())
-    newsec = {}
-    for sec in updated_sections:
-        if sec not in existing_sections:
-            newsec[sec.name()] = Section(_nrnobj=sec)
+        raise
 
     return newsec
