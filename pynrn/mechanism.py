@@ -456,8 +456,15 @@ class ArtificialCell(Mechanism):
         return self._name
 
 
+
 # Cache this data now because the results from MechanismStandard change
 # after some interactions with NEURON. See:
 # http://www.neuron.yale.edu/phpBB/viewtopic.php?f=8&t=3219
 Mechanism.reload_mechanism_types()
 
+
+# Compile and load mechanisms built in to pynrn, but not included in NEURON.
+import os
+import pynrn.compile
+mech_path = os.path.join(os.path.dirname(__file__), 'mechanisms')
+pynrn.compile.compile_and_load_mechanisms(mech_path)
