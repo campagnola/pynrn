@@ -179,7 +179,7 @@ class Section(NeuronObject):
         for i in range(self.nchild):
             yield self.child(i)
 
-    def connect(self, parent, parentx=1, childend=0):
+    def connect(self, parent, parentx=None, childend=0):
         """Connect this section to another.
         
         If the section is already connected to a parent, then raise an 
@@ -187,34 +187,54 @@ class Section(NeuronObject):
         
         Parameters
         ----------
-        parent : Section
-            The parent Section to connect to.
-        parentx : float
+        parent : Section | Segment
+            The parent Section or Segment to connect to.
+        parentx : float | None
             The position (0.0 to 1.0) along *parent* where *self* should be
-            connected.
+            connected. If the parent is a Segment, then *parentx* must be None.
         childend : 0 or 1
             The end of *self* that should be connected to *parent*.
         
+        Examples
+        --------
+
+            soma = Section(name='soma')
+            dend = Section()
+            dend.connect(parent=soma, parentx=0.5, childend=0)
+            # OR
+            dend.connect(parent=soma(0.5), childend=0)
+
         """
         self.check_destroyed()
         if self.parent is not None:
             raise RuntimeError("Section is already connected to a parent.")
-        if not isinstance(parent, Section):
+
+        if isinstance(parent, Section):
+            if parentx is None:
+                parentx = 1.0
+            try:
+                parentx = float(parentx)
+            except Exception:
+                raise TypeError("parentx must be float type")
+            if not (0 <= parentx <= 1):
+                raise ValueError("parentx must be float between 0 and 1 inclusive")
+        elif isinstance(parent, Segment):
+            if parentx is not None:
+                raise TypeError("parentx must be None when parent is a Segment.")
+        else:
             raise TypeError("parent must be a Section instance.")
+
         try:
             childend = float(childend)
         except Exception:
             raise TypeError("childend must be float type")
-        if childend not in [0, 1]:
+        if childend not in [0.0, 1.0]:
             raise ValueError("childend must be 0 or 1")
-        try:
-            parentx = float(parentx)
-        except Exception:
-            raise TypeError("parentx must be float type")
-        if not (0 <= parentx <= 1):
-            raise ValueError("parentx must be float between 0 and 1 inclusive")
-        
-        self.nrnobj.connect(parent.nrnobj, parentx, childend)
+
+        if parentx is None: 
+            self.nrnobj.connect(parent.nrnobj, childend)
+        else:
+            self.nrnobj.connect(parent.nrnobj, parentx, childend)
         
     def disconnect(self):
         """Disconnect this section from its parent. 

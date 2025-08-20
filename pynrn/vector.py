@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 from neuron import h
 from .neuron_object import NeuronObject
@@ -6,7 +5,9 @@ from .reference import FloatVar
 
 class Vector(NeuronObject):
     def __init__(self, *args):
-        if isinstance(args[0], FloatVar):
+        if len(args) == 0:
+            NeuronObject.__init__(self, h.Vector())
+        elif isinstance(args[0], FloatVar):
             NeuronObject.__init__(self, h.Vector())
             self.record(*args)
         else:
