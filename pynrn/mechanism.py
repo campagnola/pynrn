@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import weakref
 import collections
 import keyword
@@ -467,4 +466,6 @@ Mechanism.reload_mechanism_types()
 import os
 import pynrn.compile
 mech_path = os.path.join(os.path.dirname(__file__), 'mechanisms')
-pynrn.compile.compile_and_load_mechanisms(mech_path)
+
+if 'VecStim' not in globals():
+    pynrn.compile.compile_and_load_mechanisms(mech_path)

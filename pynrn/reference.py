@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 import weakref
+import neuron
 
 
 class FloatVar(float):
@@ -11,8 +11,7 @@ class FloatVar(float):
     Vector or NetCon which monitor the original range variable.
     
     The value of a FloatVar is constant; it does not update when the source
-    value changes.
-        
+    value changes.        
     """
     def __new__(cls, source, attr, val):
         f = float.__new__(cls, val)
@@ -51,3 +50,28 @@ class FloatVar(float):
 
     def __repr__(self):
         return f'FloatVar({self._source_name}.{self._attr}={float(self)})'
+
+
+class FloatHocVar(FloatVar):
+    def __new__(cls, attr, val):
+        f = float.__new__(cls, val)
+        f._attr = attr
+        f._source = None  # HocVar does not have a source object
+        f._source_name = 'hoc'
+        return f
+    
+    def source(self):
+        return neuron.h
+    
+    def get_ref(self):
+        return getattr(neuron.h, '_ref_' + self._attr, None)
+
+    def __repr__(self):
+        return f'FloatHocVar(h.{self._attr}={float(self)})'
+
+    def _as_neuron_arg(self):
+        """Return the value to use when passing this object as an argument to
+        a NEURON function. (in this case, a reference to the source variable)
+        """
+        return self.get_ref()
+

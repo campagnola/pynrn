@@ -1,6 +1,8 @@
 import weakref
 import os, gc
 from neuron import h
+
+from .reference import FloatHocVar
 from .base_object import BaseObject
 
 
@@ -77,7 +79,7 @@ class Context(BaseObject):
         self._dt = 0.025
         self._celsius = 25.0
         self._tstop = 10.
-        self._t = 0.0
+        self._t = FloatHocVar('t', h.t)
         self._finitialized = False
         self._destroyed = False
         Context._active = self
@@ -130,7 +132,8 @@ class Context(BaseObject):
         self._check_active()
         self._check_args(t=float)
         t = float(t)
-        self._t = t
+        h.t = t        
+        self._t = FloatHocVar('t', h.t)
 
     @property
     def celsius(self):

@@ -1,0 +1,75 @@
+[project]
+name = "pynrn"
+version = "1.0"
+description = "Modern, pythonic API for NEURON."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Luke Campagnola", email = "lukec@alleninstitute.org"}
+]
+maintainers = [
+    {name = "Luke Campagnola", email = "lukec@alleninstitute.org"}
+]
+keywords = [
+    "neuron",
+    "simulation", 
+    "computational-neuroscience",
+    "electrophysiology",
+    "modeling"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.19.0",
+    "neuron>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+]
+docs = [
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "nbsphinx>=0.8.0",
+]
+examples = [
+    "matplotlib>=3.3.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+]
+allen = [
+    "allensdk>=2.13.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/campagnola/pynrn"
+Repository = "https://github.com/campagnola/pynrn.git"
+Documentation = "https://github.com/campagnola/pynrn/tree/master/doc"
+"Bug Tracker" = "https://github.com/campagnola/pynrn/issues"
+
+[tool.setuptools]
+packages = ["pynrn"]
+
+[tool.setuptools.package-data]
+pynrn = ["mechanisms/*.mod"]
+
+[tool.pytest.ini_options]
+testpaths = ["pynrn/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"

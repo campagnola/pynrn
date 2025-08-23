@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-import weakref, gc
 from neuron import h
 from .context import Context
 from .base_object import BaseObject

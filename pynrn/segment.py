@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import weakref
 from .neuron_object import NeuronObject
 from .reference import FloatVar

@@ -1,4 +1,4 @@
-import os, urllib.request, zipfile
+import os, urllib.request
 import allensdk.model.biophysical as allensdk_model_biophysical
 from allensdk.model.biophysical.runner import load_description
 from allensdk.model.biophysical.utils import create_utils

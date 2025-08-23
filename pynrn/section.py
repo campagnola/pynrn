@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
 import weakref
 from neuron import h
-import neuron.hoc
 from .neuron_object import NeuronObject
 from .segment import Segment
-from .mechanism import Mechanism
 
 
 class Section(NeuronObject):
